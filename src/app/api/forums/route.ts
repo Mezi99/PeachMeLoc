@@ -19,11 +19,13 @@ export async function GET() {
     }
     
     const forums = listForums();
-    const currentPath = getDbPath();
+    
+    // Use the cookie value directly as current forum name
+    const currentForum = forumName || 'peachme';
     
     return NextResponse.json({
       forums,
-      currentForum: forums.find(f => f.path === currentPath)?.name || 'peachme'
+      currentForum
     });
   } catch (error) {
     console.error("Error listing forums:", error);
