@@ -212,7 +212,6 @@ export async function POST(
     const hopCounter = mainApi.hopCounter ?? 2;
     
     // Get stored system prompt (or use default template)
-    // Now we use important rules instead of full prompt
     const storedPublicRules = mainApi.publicImportantRules ?? mainApi.prototypePublicRules ?? null;
     
     // Default "Important rules" for public threads
@@ -256,151 +255,173 @@ Important rules:
     // Get all active agents
     const allActiveAgents = await db.select().from(agents).where(eq(agents.isActive, true));
     
-    // Priority order: mentioned agents first, then other active agents
-    const mentionedAgents = allActiveAgents.filter(a => mentionedAgentIds.includes(a.id));
-    const otherAgents = allActiveAgents.filter(a => !mentionedAgentIds.includes(a.id));
-    
-    // Process mentioned agents first (in the order mentioned), then other agents
-    const orderedAgents = [...mentionedAgents, ...otherAgents];
-    
-    if (orderedAgents.length === 0) {
+    if (allActiveAgents.length === 0) {
       return NextResponse.json({ error: "No active agents found" }, { status: 400 });
+    }
+
+    // DETERMINE RESPONSE ORDER BASED ON @MENTIONS IN USER'S POST
+    let orderedAgentIds: number[] = [];
+    
+    if (mentionedAgentIds.length > 0) {
+      // User @mentioned specific agents - only those agents will respond
+      // (others only if @mentioned in a later response)
+      orderedAgentIds = [...mentionedAgentIds];
+    } else {
+      // No @mention in user's post - all agents respond in random order
+      // Shuffle the array for randomness
+      const shuffled = [...allActiveAgents].sort(() => Math.random() - 0.5);
+      orderedAgentIds = shuffled.map(a => a.id);
     }
 
     // Track which agents have responded in this generation cycle
     const agentsRespondedThisRound = new Set<number>();
     
-    // Current round's agents to respond
-    let currentRoundAgents = orderedAgents;
+    // Queue of agents waiting to respond (in order)
+    let agentQueue = [...orderedAgentIds];
+    
+    // Track additional agents triggered by @mentions in responses
+    const triggeredAgents = new Set<number>();
+    
     let currentHop = 0;
     
-    // Loop for agent-to-agent replies (hop counter)
-    while (currentHop < hopCounter && currentRoundAgents.length > 0) {
-      // Get latest posts for context (includes posts from previous hops)
+    // Process agents SEQUENTIALLY (not simultaneously)
+    while (agentQueue.length > 0 && currentHop < hopCounter) {
+      // Get the next agent from the queue
+      const nextAgentId = agentQueue.shift()!;
+      
+      // Skip if already responded
+      if (agentsRespondedThisRound.has(nextAgentId)) continue;
+      
+      const agent = allActiveAgents.find(a => a.id === nextAgentId);
+      if (!agent) continue;
+      
+      agentsRespondedThisRound.add(agent.id);
+
+      // Get latest posts for context - THIS IS KEY: each agent sees ALL previous responses
       const latestPosts = await db
         .select()
         .from(posts)
         .where(eq(posts.threadId, threadId))
         .orderBy(asc(posts.createdAt));
+
+      // Build this agent's private DM context (unique per agent)
+      const privateDMContext = await buildPrivateDMContext(db, agent.id);
+
+      // Compose system prompt with layered context
+      const contextSections: string[] = [];
+      if (publicContext) contextSections.push(publicContext);
+      if (privateDMContext) contextSections.push(privateDMContext);
+
+      const contextBlock =
+        contextSections.length > 0
+          ? `\n\n${contextSections.join("\n\n")}\n\n== End of Context ==`
+          : "";
+
+      // Build prompt with stored important rules
+      const effectivePublicRules = storedPublicRules || DEFAULT_PUBLIC_RULES;
+      const publicRules = effectivePublicRules.replace(/{agentName}/g, agent.name);
       
-      // Track agents to respond in next hop
-      const nextRoundMentionedIds: number[] = [];
-      
-      for (const agent of currentRoundAgents) {
-        // Skip if already responded in this thread (prevent duplicate)
-        if (agentsRespondedThisRound.has(agent.id)) continue;
-        agentsRespondedThisRound.add(agent.id);
+      const promptTemplate = DEFAULT_PROTOTYPE_PROMPT;
+      const systemPrompt = promptTemplate
+        .replace(/{agentName}/g, agent.name)
+        .replace(/{agentPersona}/g, agent.personaPrompt)
+        .replace(/{contextBlock}/g, contextBlock)
+        .replace(/{threadTitle}/g, thread.title)
+        .replace(/{threadCategory}/g, thread.category)
+        .replace(/{channelName}/g, channelLabel)
+        .replace(/{importantRules}/g, publicRules);
 
-        // Build this agent's private DM context (unique per agent)
-        const privateDMContext = await buildPrivateDMContext(db, agent.id);
+      // Build conversation history for this thread - includes ALL previous responses
+      const conversationHistory = latestPosts.map((p) => ({
+        role: p.authorType === "human" ? "user" : "assistant",
+        content: `[${p.authorName}]: ${p.content}`,
+      }));
 
-        // Compose system prompt with layered context
-        const contextSections: string[] = [];
-        if (publicContext) contextSections.push(publicContext);
-        if (privateDMContext) contextSections.push(privateDMContext);
+      const messages = [
+        { role: "system", content: systemPrompt },
+        ...conversationHistory,
+        {
+          role: "user",
+          content: `Please respond to this forum thread as ${agent.name}.`,
+        },
+      ];
 
-        const contextBlock =
-          contextSections.length > 0
-            ? `\n\n${contextSections.join("\n\n")}\n\n== End of Context ==`
-            : "";
+      // Use agent's own LLM config, or fall back to Main API if no key is set
+      const effectiveBaseUrl = agent.llmApiKey.trim() ? agent.llmBaseUrl : mainApi.mainApiBaseUrl;
+      const effectiveApiKey = agent.llmApiKey.trim() ? agent.llmApiKey : mainApi.mainApiKey;
+      const effectiveModel = agent.llmApiKey.trim() ? agent.llmModel : mainApi.mainApiModel;
 
-        // Build prompt with stored important rules
-        const effectivePublicRules = storedPublicRules || DEFAULT_PUBLIC_RULES;
-        const publicRules = effectivePublicRules.replace(/{agentName}/g, agent.name);
+      try {
+        const content = await callLLM(
+          effectiveBaseUrl,
+          effectiveApiKey,
+          effectiveModel,
+          messages
+        );
+
+        const [agentPost] = await db
+          .insert(posts)
+          .values({
+            threadId,
+            content,
+            authorType: "agent",
+            authorName: agent.name,
+            authorAvatar: agent.avatar,
+            agentId: agent.id,
+            llmPrompt: JSON.stringify(messages),
+          })
+          .returning();
+
+        newAgentPosts.push(agentPost);
         
-        const promptTemplate = DEFAULT_PROTOTYPE_PROMPT;
-        const systemPrompt = promptTemplate
-          .replace(/{agentName}/g, agent.name)
-          .replace(/{agentPersona}/g, agent.personaPrompt)
-          .replace(/{contextBlock}/g, contextBlock)
-          .replace(/{threadTitle}/g, thread.title)
-          .replace(/{threadCategory}/g, thread.category)
-          .replace(/{channelName}/g, channelLabel)
-          .replace(/{importantRules}/g, publicRules);
-
-        // Build conversation history for this thread
-        const conversationHistory = latestPosts.map((p) => ({
-          role: p.authorType === "human" ? "user" : "assistant",
-          content: `[${p.authorName}]: ${p.content}`,
-        }));
-
-        const messages = [
-          { role: "system", content: systemPrompt },
-          ...conversationHistory,
-          {
-            role: "user",
-            content: `Please respond to this forum thread as ${agent.name}.`,
-          },
-        ];
-
-        // Use agent's own LLM config, or fall back to Main API if no key is set
-        const effectiveBaseUrl = agent.llmApiKey.trim() ? agent.llmBaseUrl : mainApi.mainApiBaseUrl;
-        const effectiveApiKey = agent.llmApiKey.trim() ? agent.llmApiKey : mainApi.mainApiKey;
-        const effectiveModel = agent.llmApiKey.trim() ? agent.llmModel : mainApi.mainApiModel;
-
-        try {
-          const content = await callLLM(
-            effectiveBaseUrl,
-            effectiveApiKey,
-            effectiveModel,
-            messages
+        // Check for @mentions in the response (agent-to-agent triggering)
+        // If user didn't @mention anyone initially, mentions in responses still trigger additional agents
+        if (hopCounter > 0) {
+          const responseMentions = extractMentions(content);
+          // Find agents mentioned by name (excluding self)
+          const mentionedByName = allActiveAgents.filter(a => 
+            responseMentions.includes(a.name) && a.id !== agent.id
           );
-
-          const [agentPost] = await db
-            .insert(posts)
-            .values({
-              threadId,
-              content,
-              authorType: "agent",
-              authorName: agent.name,
-              authorAvatar: agent.avatar,
-              agentId: agent.id,
-              llmPrompt: JSON.stringify(messages),
-            })
-            .returning();
-
-          newAgentPosts.push(agentPost);
-          
-          // Check for @mentions in the response (agent-to-agent)
-          if (hopCounter > 0) {
-            const responseMentions = extractMentions(content);
-            // Find agents mentioned by name
-            const mentionedByName = allActiveAgents.filter(a => 
-              responseMentions.includes(a.name) && a.id !== agent.id
-            );
-            for (const mentioned of mentionedByName) {
-              if (!nextRoundMentionedIds.includes(mentioned.id) && !agentsRespondedThisRound.has(mentioned.id)) {
-                nextRoundMentionedIds.push(mentioned.id);
+          for (const mentioned of mentionedByName) {
+            // If user originally @mentioned agents, only those can trigger others
+            // If user didn't @mention anyone, anyone can trigger anyone
+            const originalMentionedSome = mentionedAgentIds.length > 0;
+            
+            if (!originalMentionedSome) {
+              // No initial @mention - add triggered agent to queue if not already responded
+              if (!agentsRespondedThisRound.has(mentioned.id)) {
+                triggeredAgents.add(mentioned.id);
+                // Add to end of queue
+                agentQueue.push(mentioned.id);
+              }
+            } else {
+              // Initial @mention exists - only those agents can trigger chain
+              // Only add if the current agent was originally mentioned
+              if (mentionedAgentIds.includes(agent.id) && !agentsRespondedThisRound.has(mentioned.id)) {
+                triggeredAgents.add(mentioned.id);
+                agentQueue.push(mentioned.id);
               }
             }
           }
-        } catch (llmError) {
-          console.error(`LLM error for agent ${agent.name}:`, llmError);
-          const [errorPost] = await db
-            .insert(posts)
-            .values({
-              threadId,
-              content: `[Error: Could not generate response. Check API key and model settings for this agent.]`,
-              authorType: "agent",
-              authorName: agent.name,
-              authorAvatar: agent.avatar,
-              agentId: agent.id,
-              llmPrompt: JSON.stringify(messages),
-            })
-            .returning();
-          newAgentPosts.push(errorPost);
         }
+      } catch (llmError) {
+        console.error(`LLM error for agent ${agent.name}:`, llmError);
+        const [errorPost] = await db
+          .insert(posts)
+          .values({
+            threadId,
+            content: `[Error: Could not generate response. Check API key and model settings for this agent.]`,
+            authorType: "agent",
+            authorName: agent.name,
+            authorAvatar: agent.avatar,
+            agentId: agent.id,
+            llmPrompt: JSON.stringify(messages),
+          })
+          .returning();
+        newAgentPosts.push(errorPost);
       }
       
-      // Move to next hop
       currentHop++;
-      
-      // Get agents for next round (only the ones mentioned)
-      if (nextRoundMentionedIds.length > 0 && currentHop < hopCounter) {
-        currentRoundAgents = allActiveAgents.filter(a => nextRoundMentionedIds.includes(a.id));
-      } else {
-        currentRoundAgents = [];
-      }
     }
 
     // Update thread reply count and last activity
