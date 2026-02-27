@@ -84,3 +84,4 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 | Initial | Template created with base setup |
 | 2026-02-27 | Full AI Forum application built |
 | 2026-02-27 | Renamed to PeachMe, added channels and DMs |
+| 2026-02-27 | Layered context system: shared public forum memory + private DM memory per agent |
