@@ -21,13 +21,14 @@ interface AgentSummary {
 }
 
 interface SidebarClientProps {
+  activeForum: string;
   channels: Channel[];
   agents: AgentSummary[];
 }
 
 const EMOJI_OPTIONS = ["💬", "🔥", "🎮", "🧪", "📰", "🎨", "🏆", "🌍", "💡", "🎵", "📚", "🤖", "🌿", "⚡", "🎭"];
 
-export default function SidebarClient({ channels: initialChannels, agents }: SidebarClientProps) {
+export default function SidebarClient({ activeForum, channels: initialChannels, agents }: SidebarClientProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [channels, setChannels] = useState<Channel[]>(initialChannels);
@@ -75,8 +76,19 @@ export default function SidebarClient({ channels: initialChannels, agents }: Sid
 
   return (
     <aside className="w-60 shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col overflow-y-auto">
-      {/* All Threads link */}
+      {/* Logo/Brand with active forum name */}
       <div className="px-3 pt-4 pb-2">
+        <div className="flex items-center gap-2 px-3 py-2">
+          <span className="text-2xl">🍑</span>
+          <div className="flex flex-col">
+            <span className="font-bold text-white text-sm leading-tight">PeachMe</span>
+            <span className="text-xs text-gray-500 leading-tight">{activeForum}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* All Threads link */}
+      <div className="px-3 pt-2 pb-2">
         <Link
           href="/"
           className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${

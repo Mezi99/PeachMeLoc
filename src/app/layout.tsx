@@ -25,6 +25,10 @@ export const metadata: Metadata = {
 
 const FORUM_COOKIE_NAME = "peachme_forum";
 
+function getActiveForumName(cookieValue: string | undefined): string {
+  return cookieValue || "peachme";
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -33,6 +37,7 @@ export default async function RootLayout({
   // Read forum cookie and set database path
   const cookieStore = await cookies();
   const forumCookie = cookieStore.get(FORUM_COOKIE_NAME);
+  const activeForumName = getActiveForumName(forumCookie?.value);
   if (forumCookie?.value) {
     setDbPath(`./data/${forumCookie.value}.db`);
   }
@@ -62,6 +67,7 @@ export default async function RootLayout({
         <div className="flex min-h-[calc(100vh-56px)]">
           {/* Sidebar */}
           <SidebarClient
+            activeForum={activeForumName}
             channels={allChannels.map((c) => ({
               ...c,
               createdAt: c.createdAt ? c.createdAt.toISOString() : null,
