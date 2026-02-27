@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const tabs = [
   { href: "/settings/me", label: "👤 My Settings" },
   { href: "/settings/agents", label: "🤖 Manage Agents" },
+  { href: "/settings/forums", label: "💾 Saved Forums" },
 ];
 
 export default function SettingsNav() {

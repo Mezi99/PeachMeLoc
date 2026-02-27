@@ -40,6 +40,9 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 - [x] Renamed to PeachMe with 🍑 branding
 - [x] Switched database from @kilocode/app-builder-db to better-sqlite3 with Drizzle ORM
 - [x] Switched from better-sqlite3 to bun:sqlite (Bun's built-in SQLite)
+- [x] Multi-instance support: create, load, and delete forum database instances
+- [x] Settings > Saved Forums page: list/load/delete forum instances
+- [x] New Forum creation with auto-migration
 
 ## Current Structure
 
@@ -54,6 +57,7 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 | `src/app/settings/layout.tsx` | Settings layout with SettingsNav | ✅ Ready |
 | `src/app/settings/me/page.tsx` | My Settings page (nickname + Main API) | ✅ Ready |
 | `src/app/settings/agents/page.tsx` | Manage Agents page | ✅ Ready |
+| `src/app/settings/forums/page.tsx` | Saved Forums page (multi-instance) | ✅ Ready |
 | `src/app/api/agents/route.ts` | Agents CRUD API | ✅ Ready |
 | `src/app/api/agents/[id]/route.ts` | Single agent API | ✅ Ready |
 | `src/app/api/channels/route.ts` | Channels CRUD API | ✅ Ready |
@@ -63,6 +67,7 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 | `src/app/api/threads/[id]/generate/route.ts` | AI generation API (with Main API fallback) | ✅ Ready |
 | `src/app/api/dms/[agentId]/route.ts` | DM API (with Main API fallback) | ✅ Ready |
 | `src/app/api/user-settings/route.ts` | User settings API (singleton) | ✅ Ready |
+| `src/app/api/forums/route.ts` | Forum instances API (create/load/delete) | ✅ Ready |
 | `src/components/SidebarClient.tsx` | Sidebar with channels + DMs | ✅ Ready |
 | `src/components/NewThreadButton.tsx` | Thread creation modal | ✅ Ready |
 | `src/components/ThreadView.tsx` | Interactive thread view | ✅ Ready |
@@ -72,7 +77,7 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 | `src/components/SettingsNav.tsx` | Settings tab navigation | ✅ Ready |
 | `src/components/MySettingsForm.tsx` | My Settings form | ✅ Ready |
 | `src/db/schema.ts` | DB schema | ✅ Ready |
-| `src/db/index.ts` | DB client | ✅ Ready |
+| `src/db/index.ts` | DB client with multi-instance support | ✅ Ready |
 | `src/db/migrate.ts` | Migration runner | ✅ Ready |
 
 ## Database Schema
@@ -96,6 +101,7 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 8. **Settings dropdown** — header dropdown with "My Settings" and "Manage Agents" menu items
 9. **OpenAI-compatible** — works with any OpenAI-compatible API (OpenAI, Ollama, Together, etc.)
 10. **Dark UI** — clean dark theme with sidebar, chat-bubble style posts
+11. **Multi-instance forums** — create, load, and delete separate forum databases
 
 ## Session History
 
@@ -108,3 +114,4 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 | 2026-02-27 | Settings restructured: dropdown menu, My Settings page, Main API fallback for agents |
 | 2026-02-27 | Switched database from @kilocode/app-builder-db to better-sqlite3 |
 | 2026-02-27 | Switched to bun:sqlite (Bun's built-in SQLite) |
+| 2026-02-27 | Added multi-instance forum support (Saved Forums feature) |
