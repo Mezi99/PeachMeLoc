@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { userSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import MySettingsForm from "@/components/MySettingsForm";
@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function MySettingsPage() {
   // Get or create the singleton settings row
+  const db = await getDb();
   let rows = await db.select().from(userSettings).where(eq(userSettings.id, 1));
   if (rows.length === 0) {
     const [created] = await db

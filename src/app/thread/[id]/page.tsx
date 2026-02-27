@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { threads, posts } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { notFound } from "next/navigation";
@@ -14,6 +14,7 @@ export default async function ThreadPage({
 }) {
   const { id } = await params;
   const threadId = parseInt(id);
+  const db = await getDb();
 
   const [thread] = await db.select().from(threads).where(eq(threads.id, threadId));
   if (!thread) notFound();

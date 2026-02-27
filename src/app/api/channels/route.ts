@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { getDb, saveDb } from "@/db";
 import { channels } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function GET() {
   try {
+    const db = await getDb();
     const all = await db.select().from(channels).orderBy(channels.createdAt);
     return NextResponse.json(all);
   } catch (error) {
@@ -15,6 +16,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const db = await getDb();
     const body = await req.json();
     const { name, description, emoji } = body;
 
@@ -45,6 +47,7 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
+    saveDb();
     return NextResponse.json(channel, { status: 201 });
   } catch (error) {
     console.error("POST /api/channels error:", error);

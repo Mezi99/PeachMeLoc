@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { agents, directMessages } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { notFound } from "next/navigation";
@@ -14,6 +14,7 @@ export default async function DMPage({
 }) {
   const { agentId } = await params;
   const agentIdNum = parseInt(agentId);
+  const db = await getDb();
 
   const [agent] = await db.select().from(agents).where(eq(agents.id, agentIdNum));
   if (!agent) notFound();

@@ -1,10 +1,11 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { agents } from "@/db/schema";
 import AgentsManager from "@/components/AgentsManager";
 
 export const dynamic = "force-dynamic";
 
 export default async function ManageAgentsPage() {
+  const db = await getDb();
   const allAgents = await db.select().from(agents).orderBy(agents.createdAt);
 
   return (

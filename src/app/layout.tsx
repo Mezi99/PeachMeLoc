@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { channels, agents } from "@/db/schema";
 import SidebarClient from "@/components/SidebarClient";
 import SettingsDropdown from "@/components/SettingsDropdown";
@@ -27,6 +27,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const db = await getDb();
   const allChannels = await db.select().from(channels).orderBy(channels.createdAt);
   const allAgents = await db.select().from(agents).orderBy(agents.name);
 

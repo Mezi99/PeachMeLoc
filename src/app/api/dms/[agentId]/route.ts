@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { getDb, saveDb } from "@/db";
 import { directMessages, agents, posts, threads, channels, userSettings } from "@/db/schema";
 import { eq, asc, desc } from "drizzle-orm";
 
@@ -8,7 +8,7 @@ import { eq, asc, desc } from "drizzle-orm";
  * Fetches the last 40 posts across ALL public threads.
  * All agents see this identically — it represents shared public knowledge.
  */
-async function buildPublicForumContext(): Promise<string> {
+async function buildPublicForumContext(db: Awaited<ReturnType<typeof getDb>>): Promise<string> {
   const recentPosts = await db
     .select({
       content: posts.content,
@@ -72,6 +72,7 @@ export async function GET(
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   try {
+    const db = await getDb();
     const { agentId } = await params;
     const messages = await db
       .select()
@@ -90,6 +91,7 @@ export async function POST(
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   try {
+    const db = await getDb();
     const { agentId } = await params;
     const agentIdNum = parseInt(agentId);
     const body = await req.json();
@@ -136,7 +138,7 @@ export async function POST(
       .orderBy(asc(directMessages.createdAt));
 
     // Build shared public forum context (same for all agents — public knowledge)
-    const publicContext = await buildPublicForumContext();
+    const publicContext = await buildPublicForumContext(db);
 
     // Compose system prompt with layered context
     const contextBlock = publicContext
@@ -211,6 +213,7 @@ Important rules:
       })
       .returning();
 
+    saveDb();
     return NextResponse.json({ humanMessage: humanMsg, agentMessage: agentMsg }, { status: 201 });
   } catch (error) {
     console.error("POST /api/dms/[agentId] error:", error);

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { getDb, saveDb } from "@/db";
 import { userSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function GET() {
   try {
+    const db = await getDb();
     const rows = await db.select().from(userSettings).where(eq(userSettings.id, 1));
     if (rows.length === 0) {
       // Auto-create the singleton row if it doesn't exist
@@ -12,6 +13,7 @@ export async function GET() {
         .insert(userSettings)
         .values({ id: 1, nickname: "You", mainApiBaseUrl: "https://api.openai.com/v1", mainApiKey: "", mainApiModel: "gpt-4o-mini" })
         .returning();
+      saveDb();
       return NextResponse.json(created);
     }
     return NextResponse.json(rows[0]);
@@ -23,6 +25,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const db = await getDb();
     const body = await req.json();
     const { nickname, mainApiBaseUrl, mainApiKey, mainApiModel } = body;
 
@@ -41,6 +44,7 @@ export async function POST(req: NextRequest) {
           updatedAt: new Date(),
         })
         .returning();
+      saveDb();
       return NextResponse.json(created);
     } else {
       const [updated] = await db
@@ -54,6 +58,7 @@ export async function POST(req: NextRequest) {
         })
         .where(eq(userSettings.id, 1))
         .returning();
+      saveDb();
       return NextResponse.json(updated);
     }
   } catch (error) {

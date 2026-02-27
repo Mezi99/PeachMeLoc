@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
-import { posts, threads, agents } from "@/db/schema";
+import { getDb, saveDb } from "@/db";
+import { posts, threads } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 
 export async function GET(
@@ -8,6 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const db = await getDb();
     const { id } = await params;
     const threadPosts = await db
       .select()
@@ -26,6 +27,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const db = await getDb();
     const { id } = await params;
     const threadId = parseInt(id);
     const body = await req.json();
@@ -49,14 +51,16 @@ export async function POST(
       .returning();
 
     // Update thread reply count and last activity
+    const postsCount = await db.select().from(posts).where(eq(posts.threadId, threadId));
     await db
       .update(threads)
       .set({
-        replyCount: (await db.select().from(posts).where(eq(posts.threadId, threadId))).length - 1,
+        replyCount: postsCount.length - 1,
         lastActivityAt: new Date(),
       })
       .where(eq(threads.id, threadId));
 
+    saveDb();
     return NextResponse.json(post, { status: 201 });
   } catch (error) {
     console.error("POST /api/threads/[id]/posts error:", error);

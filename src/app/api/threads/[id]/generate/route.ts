@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { getDb, saveDb } from "@/db";
 import { posts, threads, agents, directMessages, channels, userSettings } from "@/db/schema";
 import { eq, asc, desc, ne } from "drizzle-orm";
 
@@ -40,7 +40,7 @@ async function callLLM(
  * which is passed separately as the active conversation).
  * All agents see this identically — it represents shared public knowledge.
  */
-async function buildPublicForumContext(currentThreadId: number): Promise<string> {
+async function buildPublicForumContext(db: ReturnType<typeof getDb>, currentThreadId: number): Promise<string> {
   // Get recent posts from OTHER threads (not the current one)
   const recentPosts = await db
     .select({
@@ -91,7 +91,7 @@ async function buildPublicForumContext(currentThreadId: number): Promise<string>
  * Build the private DM context for a specific agent.
  * Only this agent's DMs with the user are included — other agents' DMs are never exposed.
  */
-async function buildPrivateDMContext(agentId: number): Promise<string> {
+async function buildPrivateDMContext(db: ReturnType<typeof getDb>, agentId: number): Promise<string> {
   const dms = await db
     .select()
     .from(directMessages)
@@ -117,6 +117,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const db = await getDb();
     const { id } = await params;
     const threadId = parseInt(id);
 
@@ -160,7 +161,7 @@ export async function POST(
       .orderBy(asc(posts.createdAt));
 
     // Build shared public context once (same for all agents)
-    const publicContext = await buildPublicForumContext(threadId);
+    const publicContext = await buildPublicForumContext(db, threadId);
 
     const channelLabel = thread.channelName
       ? `${thread.channelEmoji ?? ""} #${thread.channelName}`.trim()
@@ -171,7 +172,7 @@ export async function POST(
     // Each active agent responds
     for (const agent of activeAgents) {
       // Build this agent's private DM context (unique per agent)
-      const privateDMContext = await buildPrivateDMContext(agent.id);
+      const privateDMContext = await buildPrivateDMContext(db, agent.id);
 
       // Compose system prompt with layered context
       const contextSections: string[] = [];
@@ -268,6 +269,7 @@ Important rules:
       })
       .where(eq(threads.id, threadId));
 
+    saveDb();
     return NextResponse.json({ posts: newAgentPosts });
   } catch (error) {
     console.error("POST /api/threads/[id]/generate error:", error);

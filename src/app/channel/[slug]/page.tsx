@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { channels, threads } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { notFound } from "next/navigation";
@@ -40,6 +40,7 @@ export default async function ChannelPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const db = await getDb();
 
   const [channel] = await db.select().from(channels).where(eq(channels.slug, slug));
   if (!channel) notFound();

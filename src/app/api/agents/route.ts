@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { getDb, saveDb } from "@/db";
 import { agents } from "@/db/schema";
-import { eq } from "drizzle-orm";
 
 export async function GET() {
   try {
+    const db = await getDb();
     const allAgents = await db.select().from(agents).orderBy(agents.createdAt);
     return NextResponse.json(allAgents);
   } catch (error) {
@@ -15,6 +15,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const db = await getDb();
     const body = await req.json();
     const { name, avatar, personaPrompt, llmBaseUrl, llmApiKey, llmModel } = body;
 
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
+    saveDb();
     return NextResponse.json(agent, { status: 201 });
   } catch (error) {
     console.error("POST /api/agents error:", error);

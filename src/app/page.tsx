@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { threads } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import Link from "next/link";
@@ -34,6 +34,7 @@ function formatDate(date: Date | null) {
 }
 
 export default async function HomePage() {
+  const db = await getDb();
   const allThreads = await db.select().from(threads).orderBy(desc(threads.lastActivityAt));
 
   return (

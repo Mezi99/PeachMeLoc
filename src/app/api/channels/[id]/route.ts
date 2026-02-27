@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { getDb, saveDb } from "@/db";
 import { channels } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -8,6 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const db = await getDb();
     const { id } = await params;
     const [channel] = await db.select().from(channels).where(eq(channels.id, parseInt(id)));
     if (!channel) {
@@ -25,6 +26,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const db = await getDb();
     const { id } = await params;
     const body = await req.json();
     const { name, description, emoji } = body;
@@ -43,6 +45,8 @@ export async function PUT(
     if (!channel) {
       return NextResponse.json({ error: "Channel not found" }, { status: 404 });
     }
+    
+    saveDb();
     return NextResponse.json(channel);
   } catch (error) {
     console.error("PUT /api/channels/[id] error:", error);
@@ -55,8 +59,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const db = await getDb();
     const { id } = await params;
     await db.delete(channels).where(eq(channels.id, parseInt(id)));
+    saveDb();
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("DELETE /api/channels/[id] error:", error);

@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { getDb, saveDb } from "@/db";
 import { threads, posts } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
   try {
+    const db = await getDb();
     const { searchParams } = new URL(req.url);
     const channelId = searchParams.get("channelId");
-
-    let query = db.select().from(threads).orderBy(desc(threads.lastActivityAt));
 
     if (channelId) {
       const allThreads = await db
@@ -19,7 +18,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(allThreads);
     }
 
-    const allThreads = await query;
+    const allThreads = await db.select().from(threads).orderBy(desc(threads.lastActivityAt));
     return NextResponse.json(allThreads);
   } catch (error) {
     console.error("GET /api/threads error:", error);
@@ -29,6 +28,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const db = await getDb();
     const body = await req.json();
     const { title, category, content, channelId } = body;
 
@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
       agentId: null,
     });
 
+    saveDb();
     return NextResponse.json(thread, { status: 201 });
   } catch (error) {
     console.error("POST /api/threads error:", error);
