@@ -39,6 +39,7 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 - [x] MySettingsForm component (nickname + Main API form)
 - [x] Renamed to PeachMe with 🍑 branding
 - [x] Switched database from @kilocode/app-builder-db to better-sqlite3 with Drizzle ORM
+- [x] Switched from better-sqlite3 to bun:sqlite (Bun's built-in SQLite)
 
 ## Current Structure
 
@@ -106,3 +107,4 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 | 2026-02-27 | Layered context system: shared public forum memory + private DM memory per agent |
 | 2026-02-27 | Settings restructured: dropdown menu, My Settings page, Main API fallback for agents |
 | 2026-02-27 | Switched database from @kilocode/app-builder-db to better-sqlite3 |
+| 2026-02-27 | Switched to bun:sqlite (Bun's built-in SQLite) |
