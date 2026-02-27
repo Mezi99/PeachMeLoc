@@ -73,12 +73,12 @@ function AgentForm({ initial, onSave, onCancel, saving }: AgentFormProps) {
           )}
         </div>
         <div className="flex-1">
-          <label className="block text-xs font-medium text-gray-400 mb-1">Agent Name</label>
+          <label className="block text-xs font-medium text-gray-400 mb-1">Agent Name <span className="text-indigo-400">(no spaces, used as @handle)</span></label>
           <input
             type="text"
             value={form.name}
-            onChange={(e) => set("name", e.target.value)}
-            placeholder="e.g. Alex the Skeptic"
+            onChange={(e) => set("name", e.target.value.replace(/\s+/g, ''))}
+            placeholder="e.g. Alex"
             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 text-sm"
           />
         </div>

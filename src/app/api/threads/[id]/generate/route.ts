@@ -121,6 +121,15 @@ export async function POST(
     const db = getDb();
     const { id } = await params;
     const threadId = parseInt(id);
+    
+    // Parse request body for mentionedAgentIds
+    let mentionedAgentIds: number[] = [];
+    try {
+      const body = await req.json();
+      mentionedAgentIds = body.mentionedAgentIds || [];
+    } catch {
+      // If no JSON body, assume no mentions
+    }
 
     // Get thread info (including channel name if any)
     const [thread] = await db
@@ -138,12 +147,6 @@ export async function POST(
 
     if (!thread) {
       return NextResponse.json({ error: "Thread not found" }, { status: 404 });
-    }
-
-    // Get all active agents
-    const activeAgents = await db.select().from(agents).where(eq(agents.isActive, true));
-    if (activeAgents.length === 0) {
-      return NextResponse.json({ error: "No active agents found" }, { status: 400 });
     }
 
     // Get main API fallback settings
@@ -170,8 +173,22 @@ export async function POST(
 
     const newAgentPosts = [];
 
-    // Each active agent responds
-    for (const agent of activeAgents) {
+    // Get all active agents
+    const allActiveAgents = await db.select().from(agents).where(eq(agents.isActive, true));
+    
+    // Priority order: mentioned agents first, then other active agents
+    const mentionedAgents = allActiveAgents.filter(a => mentionedAgentIds.includes(a.id));
+    const otherAgents = allActiveAgents.filter(a => !mentionedAgentIds.includes(a.id));
+    
+    // Process mentioned agents first (in the order mentioned), then other agents
+    const orderedAgents = [...mentionedAgents, ...otherAgents];
+    
+    if (orderedAgents.length === 0) {
+      return NextResponse.json({ error: "No active agents found" }, { status: 400 });
+    }
+
+    // Each agent responds in priority order
+    for (const agent of orderedAgents) {
       // Build this agent's private DM context (unique per agent)
       const privateDMContext = await buildPrivateDMContext(db, agent.id);
 

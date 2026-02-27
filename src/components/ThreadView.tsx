@@ -103,14 +103,20 @@ export default function ThreadView({ threadId, initialPosts }: ThreadViewProps) 
         body: JSON.stringify({ content: replyContent.trim() }),
       });
       if (!res.ok) throw new Error("Failed to post reply");
-      const newPost = await res.json();
+      const result = await res.json();
+      const newPost = result;
       setPostsList((prev) => [...prev, { ...newPost, createdAt: newPost.createdAt ?? new Date().toISOString() }]);
       setReplyContent("");
 
-      // Trigger AI agent responses
+      // Get mentioned agent IDs from the post response
+      const mentionedAgentIds = result.mentionedAgentIds || [];
+
+      // Trigger AI agent responses (mentioned agents respond first)
       setGenerating(true);
       const genRes = await fetch(`/api/threads/${threadId}/generate`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mentionedAgentIds }),
       });
       if (!genRes.ok) throw new Error("Failed to generate AI responses");
       const { posts: agentPosts } = await genRes.json();
@@ -124,6 +130,16 @@ export default function ThreadView({ threadId, initialPosts }: ThreadViewProps) 
     } finally {
       setSubmitting(false);
       setGenerating(false);
+    }
+  };
+
+  // Handle clicking reply on an agent post - adds @mention to the reply box
+  const handleAgentReply = (agentName: string) => {
+    setReplyContent(`@${agentName} `);
+    // Focus the textarea
+    const textarea = document.querySelector('textarea[placeholder*="Write a reply"]') as HTMLTextAreaElement;
+    if (textarea) {
+      textarea.focus();
     }
   };
 
@@ -181,6 +197,15 @@ export default function ThreadView({ threadId, initialPosts }: ThreadViewProps) 
                 </div>
                 {!isHuman && post.llmPrompt && (
                   <PromptButton prompt={post.llmPrompt} />
+                )}
+                {/* Reply button for agent posts */}
+                {!isHuman && (
+                  <button
+                    onClick={() => handleAgentReply(post.authorName)}
+                    className="mt-1 text-xs text-indigo-400 hover:text-indigo-300"
+                  >
+                    ↩️ Reply
+                  </button>
                 )}
               </div>
             </div>

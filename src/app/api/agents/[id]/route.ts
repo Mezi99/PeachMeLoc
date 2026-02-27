@@ -33,6 +33,22 @@ export async function PUT(
     const body = await req.json();
     const { name, avatar, personaPrompt, llmBaseUrl, llmApiKey, llmModel, isActive } = body;
 
+    // Validate name format if provided
+    if (name !== undefined) {
+      if (/\s/.test(name)) {
+        return NextResponse.json({ error: "Agent name cannot contain spaces. Use a single word like 'Alex'." }, { status: 400 });
+      }
+      if (name.length < 1 || name.length > 30) {
+        return NextResponse.json({ error: "Agent name must be 1-30 characters" }, { status: 400 });
+      }
+
+      // Check for duplicate name (excluding current agent)
+      const existing = await db.select().from(agents).where(eq(agents.name, name));
+      if (existing.length > 0 && existing[0].id !== parseInt(id)) {
+        return NextResponse.json({ error: "An agent with this name already exists. Choose a different name." }, { status: 400 });
+      }
+    }
+
     const [agent] = await db
       .update(agents)
       .set({

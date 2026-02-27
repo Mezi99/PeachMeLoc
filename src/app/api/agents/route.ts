@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, saveDb, syncForumFromCookie } from "@/db";
 import { agents } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export async function GET() {
   try {
@@ -23,6 +24,21 @@ export async function POST(req: NextRequest) {
 
     if (!name || !personaPrompt) {
       return NextResponse.json({ error: "name and personaPrompt are required" }, { status: 400 });
+    }
+
+    // Validate name format: no spaces allowed (used as @handle)
+    if (/\s/.test(name)) {
+      return NextResponse.json({ error: "Agent name cannot contain spaces. Use a single word like 'Alex'." }, { status: 400 });
+    }
+
+    if (name.length < 1 || name.length > 30) {
+      return NextResponse.json({ error: "Agent name must be 1-30 characters" }, { status: 400 });
+    }
+
+    // Check for duplicate name
+    const existing = await db.select().from(agents).where(eq(agents.name, name));
+    if (existing.length > 0) {
+      return NextResponse.json({ error: "An agent with this name already exists. Choose a different name." }, { status: 400 });
     }
 
     const [agent] = await db

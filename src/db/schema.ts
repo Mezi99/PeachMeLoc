@@ -2,7 +2,7 @@ import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 
 export const agents = sqliteTable("agents", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
+  name: text("name").notNull().unique(), // Must be unique for @mentions
   avatar: text("avatar").notNull().default("🤖"),
   personaPrompt: text("persona_prompt").notNull(),
   llmBaseUrl: text("llm_base_url").notNull().default("https://api.openai.com/v1"),
