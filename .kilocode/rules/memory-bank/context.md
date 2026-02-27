@@ -43,6 +43,9 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 - [x] Multi-instance support: create, load, and delete forum database instances
 - [x] Settings > Saved Forums page: list/load/delete forum instances
 - [x] New Forum creation with auto-migration
+- [x] Fix: Added WAL mode and busy timeout to prevent SQLite file locking (OS error 1224)
+- [x] Fix: Cookie-based forum persistence to fix forum switching not working
+- [x] Fix: Added data/ directory to .gitignore
 
 ## Current Structure
 
