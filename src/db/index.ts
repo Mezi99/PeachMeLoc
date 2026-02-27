@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema";
-import { existsSync, mkdirSync, readdirSync, unlinkSync, readFileSync } from "fs";
+import { existsSync, mkdirSync, readdirSync, unlinkSync, readFileSync, closeSync, openSync, statSync } from "fs";
 import path from "path";
 
 const DB_DIR = "./data";
@@ -9,13 +9,20 @@ const DB_EXTENSION = ".db";
 const MIGRATIONS_FOLDER = "./src/db/migrations";
 
 // Store the current database path in memory
-let currentDbPath: string = "./peachme.db";
+let currentDbPath: string = path.join(DB_DIR, `peachme${DB_EXTENSION}`);
 let dbInstance: ReturnType<typeof drizzle<typeof schema>> | null = null;
+let sqliteClient: Database.Database | null = null;
 
 // Ensure data directory exists
 function ensureDataDir() {
   if (!existsSync(DB_DIR)) {
     mkdirSync(DB_DIR, { recursive: true });
+  }
+  
+  // Create default database if it doesn't exist
+  const defaultDbPath = path.join(DB_DIR, `peachme${DB_EXTENSION}`);
+  if (!existsSync(defaultDbPath)) {
+    runMigrationsOnDb(defaultDbPath);
   }
 }
 
@@ -49,12 +56,17 @@ export function getDbPath(): string {
 
 // Set the current database path and reload the connection
 export function setDbPath(dbPath: string): void {
-  currentDbPath = dbPath;
-  // Close existing connection
-  if (dbInstance) {
-    (dbInstance as any).$client?.close();
-    dbInstance = null;
+  // Close existing connection properly
+  if (sqliteClient) {
+    try {
+      sqliteClient.close();
+    } catch (e) {
+      // Ignore close errors
+    }
+    sqliteClient = null;
   }
+  dbInstance = null;
+  currentDbPath = dbPath;
 }
 
 // Get or create database instance
@@ -63,8 +75,8 @@ export function getDb() {
 
   ensureDataDir();
   
-  const sqlite = new Database(currentDbPath);
-  dbInstance = drizzle(sqlite, { schema });
+  sqliteClient = new Database(currentDbPath);
+  dbInstance = drizzle(sqliteClient, { schema });
 
   return dbInstance;
 }
@@ -72,6 +84,7 @@ export function getDb() {
 // Get database client directly (for raw queries)
 export function getDbClient() {
   ensureDataDir();
+  // Create a new client each time to avoid conflicts
   return new Database(currentDbPath);
 }
 
