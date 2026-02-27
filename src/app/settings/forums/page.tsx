@@ -83,8 +83,8 @@ export default function SavedForumsPage() {
         return;
       }
       
-      // Refresh and navigate to home
-      window.location.href = "/";
+      // Force full page reload to ensure cookie is read and data refreshes
+      window.location.reload();
     } catch (err) {
       setError("Failed to switch forum");
     } finally {
