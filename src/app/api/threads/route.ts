@@ -1,11 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { threads, posts } from "@/db/schema";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const allThreads = await db.select().from(threads).orderBy(desc(threads.lastActivityAt));
+    const { searchParams } = new URL(req.url);
+    const channelId = searchParams.get("channelId");
+
+    let query = db.select().from(threads).orderBy(desc(threads.lastActivityAt));
+
+    if (channelId) {
+      const allThreads = await db
+        .select()
+        .from(threads)
+        .where(eq(threads.channelId, parseInt(channelId)))
+        .orderBy(desc(threads.lastActivityAt));
+      return NextResponse.json(allThreads);
+    }
+
+    const allThreads = await query;
     return NextResponse.json(allThreads);
   } catch (error) {
     console.error("GET /api/threads error:", error);
@@ -16,7 +30,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { title, category, content } = body;
+    const { title, category, content, channelId } = body;
 
     if (!title || !content) {
       return NextResponse.json({ error: "title and content are required" }, { status: 400 });
@@ -27,6 +41,7 @@ export async function POST(req: NextRequest) {
       .values({
         title,
         category: category || "General",
+        channelId: channelId ? parseInt(channelId) : null,
         authorName: "You",
         replyCount: 0,
       })

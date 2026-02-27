@@ -15,7 +15,12 @@ const CATEGORIES = [
   "Other",
 ];
 
-export default function NewThreadButton() {
+interface NewThreadButtonProps {
+  channelId?: number;
+  channelName?: string;
+}
+
+export default function NewThreadButton({ channelId, channelName }: NewThreadButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -36,7 +41,12 @@ export default function NewThreadButton() {
       const res = await fetch("/api/threads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), category, content: content.trim() }),
+        body: JSON.stringify({
+          title: title.trim(),
+          category,
+          content: content.trim(),
+          channelId: channelId ?? null,
+        }),
       });
       if (!res.ok) throw new Error("Failed to create thread");
       const thread = await res.json();
@@ -66,7 +76,12 @@ export default function NewThreadButton() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-lg shadow-2xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
-              <h2 className="text-lg font-bold text-white">New Thread</h2>
+              <div>
+                <h2 className="text-lg font-bold text-white">New Thread</h2>
+                {channelName && (
+                  <p className="text-xs text-gray-500 mt-0.5">in #{channelName}</p>
+                )}
+              </div>
               <button
                 onClick={() => setOpen(false)}
                 className="text-gray-400 hover:text-white text-xl leading-none"

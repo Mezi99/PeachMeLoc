@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 interface Agent {
   id: number;
@@ -313,6 +314,12 @@ export default function AgentsManager({ initialAgents }: { initialAgents: Agent[
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                <Link
+                  href={`/dm/${agent.id}`}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-indigo-800 text-indigo-400 hover:bg-indigo-900/30 transition-colors"
+                >
+                  💬 DM
+                </Link>
                 <button
                   onClick={() => toggleActive(agent)}
                   className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
