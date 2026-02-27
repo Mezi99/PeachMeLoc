@@ -74,14 +74,10 @@ export default async function HomePage() {
                         {thread.category}
                       </span>
                       {channel && (
-                        <Link
-                          href={`/channel/${channel.slug}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 hover:text-indigo-400 hover:bg-gray-700 transition-colors flex items-center gap-1"
-                        >
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 flex items-center gap-1">
                           <span>{channel.emoji}</span>
                           <span>{channel.name}</span>
-                        </Link>
+                        </span>
                       )}
                     </div>
                     <h2 className="text-white font-semibold group-hover:text-indigo-300 transition-colors truncate">
