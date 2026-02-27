@@ -40,6 +40,7 @@ export const posts = sqliteTable("posts", {
   authorName: text("author_name").notNull(),
   authorAvatar: text("author_avatar").notNull().default("👤"),
   agentId: integer("agent_id").references(() => agents.id),
+  llmPrompt: text("llm_prompt"), // JSON string of messages sent to LLM (for agents only)
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
@@ -48,6 +49,7 @@ export const directMessages = sqliteTable("direct_messages", {
   agentId: integer("agent_id").notNull().references(() => agents.id),
   role: text("role").notNull(), // "human" | "agent"
   content: text("content").notNull(),
+  llmPrompt: text("llm_prompt"), // JSON string of messages sent to LLM (for agents only)
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 

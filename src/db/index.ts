@@ -39,7 +39,8 @@ function runMigrationsOnDb(dbPath: string) {
   const migrationFiles = [
     "0000_glorious_natasha_romanoff.sql",
     "0001_old_centennial.sql",
-    "0002_user_settings.sql"
+    "0002_user_settings.sql",
+    "0003_llm_prompt.sql"
   ];
 
   for (const file of migrationFiles) {

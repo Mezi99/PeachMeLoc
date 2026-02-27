@@ -10,6 +10,7 @@ interface Post {
   authorName: string;
   authorAvatar: string;
   agentId: number | null;
+  llmPrompt?: string | null;
   createdAt: string | null;
 }
 
@@ -29,6 +30,51 @@ function formatTime(iso: string | null) {
   if (mins < 60) return `${mins}m ago`;
   if (hours < 24) return `${hours}h ago`;
   return d.toLocaleDateString();
+}
+
+function PromptButton({ prompt }: { prompt: string }) {
+  const [show, setShow] = useState(false);
+
+  let messages: { role: string; content: string }[] = [];
+  try {
+    messages = JSON.parse(prompt);
+  } catch {
+    messages = [];
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setShow(true)}
+        className="mt-1 text-xs text-gray-600 hover:text-gray-400 underline"
+      >
+        📋 View Prompt
+      </button>
+      {show && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShow(false)}>
+          <div 
+            className="bg-gray-900 border border-gray-700 rounded-xl max-w-2xl w-full max-h-[80vh] overflow-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-gray-800 px-4 py-3 border-b border-gray-700 flex justify-between items-center">
+              <h3 className="font-semibold text-gray-200">Prompt Sent to LLM</h3>
+              <button onClick={() => setShow(false)} className="text-gray-400 hover:text-white text-xl">×</button>
+            </div>
+            <div className="p-4 space-y-3">
+              {messages.map((msg, i) => (
+                <div key={i} className={`p-3 rounded-lg text-sm ${msg.role === 'system' ? 'bg-purple-900/30 border border-purple-800' : msg.role === 'user' ? 'bg-indigo-900/30 border border-indigo-800' : 'bg-gray-800 border border-gray-700'}`}>
+                  <span className={`font-medium ${msg.role === 'system' ? 'text-purple-400' : msg.role === 'user' ? 'text-indigo-400' : 'text-green-400'}`}>
+                    {msg.role === 'system' ? 'System' : msg.role === 'user' ? 'User' : 'Assistant'}:
+                  </span>
+                  <pre className="mt-1 whitespace-pre-wrap text-gray-300 font-mono text-xs">{msg.content}</pre>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 export default function ThreadView({ threadId, initialPosts }: ThreadViewProps) {
@@ -133,6 +179,9 @@ export default function ThreadView({ threadId, initialPosts }: ThreadViewProps) 
                 >
                   {post.content}
                 </div>
+                {!isHuman && post.llmPrompt && (
+                  <PromptButton prompt={post.llmPrompt} />
+                )}
               </div>
             </div>
           );

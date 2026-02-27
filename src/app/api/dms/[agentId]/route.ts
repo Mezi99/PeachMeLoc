@@ -212,6 +212,7 @@ Important rules:
         agentId: agentIdNum,
         role: "agent",
         content: agentContent,
+        llmPrompt: JSON.stringify(llmMessages),
       })
       .returning();
 

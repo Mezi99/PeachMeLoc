@@ -239,6 +239,7 @@ Important rules:
             authorName: agent.name,
             authorAvatar: agent.avatar,
             agentId: agent.id,
+            llmPrompt: JSON.stringify(messages),
           })
           .returning();
 
@@ -254,6 +255,7 @@ Important rules:
             authorName: agent.name,
             authorAvatar: agent.avatar,
             agentId: agent.id,
+            llmPrompt: JSON.stringify(messages),
           })
           .returning();
         newAgentPosts.push(errorPost);
