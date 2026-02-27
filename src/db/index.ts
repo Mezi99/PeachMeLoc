@@ -30,6 +30,10 @@ function ensureDataDir() {
 function runMigrationsOnDb(dbPath: string) {
   const sqlite = new Database(dbPath);
   
+  // Enable WAL mode for better concurrency
+  sqlite.pragma('journal_mode = WAL');
+  sqlite.pragma('busy_timeout = 5000');
+  
   const migrationFiles = [
     "0000_glorious_natasha_romanoff.sql",
     "0001_old_centennial.sql",
@@ -59,6 +63,8 @@ export function setDbPath(dbPath: string): void {
   // Close existing connection properly
   if (sqliteClient) {
     try {
+      // Force close WAL before closing the database
+      sqliteClient.pragma('wal_checkpoint(TRUNCATE)');
       sqliteClient.close();
     } catch (e) {
       // Ignore close errors
@@ -76,16 +82,35 @@ export function getDb() {
   ensureDataDir();
   
   sqliteClient = new Database(currentDbPath);
+  
+  // Enable WAL mode for better concurrency and to prevent locking issues
+  sqliteClient.pragma('journal_mode = WAL');
+  sqliteClient.pragma('busy_timeout = 5000');
+  
   dbInstance = drizzle(sqliteClient, { schema });
 
   return dbInstance;
 }
 
 // Get database client directly (for raw queries)
-export function getDbClient() {
+// IMPORTANT: Always close the client after use to prevent file locking!
+export function getDbClient(): Database.Database {
   ensureDataDir();
-  // Create a new client each time to avoid conflicts
-  return new Database(currentDbPath);
+  const client = new Database(currentDbPath);
+  // Configure for better concurrency
+  client.pragma('journal_mode = WAL');
+  client.pragma('busy_timeout = 5000');
+  return client;
+}
+
+// Helper to safely use a database client with automatic cleanup
+export function withDbClient<T>(fn: (client: Database.Database) => T): T {
+  const client = getDbClient();
+  try {
+    return fn(client);
+  } finally {
+    client.close();
+  }
 }
 
 // No-op for backward compatibility - better-sqlite3 auto-persists
