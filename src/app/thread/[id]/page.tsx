@@ -14,7 +14,7 @@ export default async function ThreadPage({
 }) {
   const { id } = await params;
   const threadId = parseInt(id);
-  const db = await getDb();
+  const db = getDb();
 
   const [thread] = await db.select().from(threads).where(eq(threads.id, threadId));
   if (!thread) notFound();

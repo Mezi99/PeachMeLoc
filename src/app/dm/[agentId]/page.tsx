@@ -14,7 +14,7 @@ export default async function DMPage({
 }) {
   const { agentId } = await params;
   const agentIdNum = parseInt(agentId);
-  const db = await getDb();
+  const db = getDb();
 
   const [agent] = await db.select().from(agents).where(eq(agents.id, agentIdNum));
   if (!agent) notFound();

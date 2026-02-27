@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const db = await getDb();
+    const db = getDb();
     const { id } = await params;
     const [agent] = await db.select().from(agents).where(eq(agents.id, parseInt(id)));
     if (!agent) {
@@ -26,7 +26,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const db = await getDb();
+    const db = getDb();
     const { id } = await params;
     const body = await req.json();
     const { name, avatar, personaPrompt, llmBaseUrl, llmApiKey, llmModel, isActive } = body;
@@ -62,7 +62,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const db = await getDb();
+    const db = getDb();
     const { id } = await params;
     await db.delete(agents).where(eq(agents.id, parseInt(id)));
     saveDb();

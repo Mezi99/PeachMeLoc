@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 
 export async function GET() {
   try {
-    const db = await getDb();
+    const db = getDb();
     const rows = await db.select().from(userSettings).where(eq(userSettings.id, 1));
     if (rows.length === 0) {
       // Auto-create the singleton row if it doesn't exist
@@ -25,7 +25,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const db = await getDb();
+    const db = getDb();
     const body = await req.json();
     const { nickname, mainApiBaseUrl, mainApiKey, mainApiModel } = body;
 

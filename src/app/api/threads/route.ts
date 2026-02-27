@@ -5,7 +5,7 @@ import { desc, eq } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
   try {
-    const db = await getDb();
+    const db = getDb();
     const { searchParams } = new URL(req.url);
     const channelId = searchParams.get("channelId");
 
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const db = await getDb();
+    const db = getDb();
     const body = await req.json();
     const { title, category, content, channelId } = body;
 

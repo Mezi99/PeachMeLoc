@@ -34,7 +34,7 @@ function formatDate(date: Date | null) {
 }
 
 export default async function HomePage() {
-  const db = await getDb();
+  const db = getDb();
   const allThreads = await db.select().from(threads).orderBy(desc(threads.lastActivityAt));
 
   return (

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function MySettingsPage() {
   // Get or create the singleton settings row
-  const db = await getDb();
+  const db = getDb();
   let rows = await db.select().from(userSettings).where(eq(userSettings.id, 1));
   if (rows.length === 0) {
     const [created] = await db

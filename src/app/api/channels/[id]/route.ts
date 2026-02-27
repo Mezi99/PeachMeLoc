@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const db = await getDb();
+    const db = getDb();
     const { id } = await params;
     const [channel] = await db.select().from(channels).where(eq(channels.id, parseInt(id)));
     if (!channel) {
@@ -26,7 +26,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const db = await getDb();
+    const db = getDb();
     const { id } = await params;
     const body = await req.json();
     const { name, description, emoji } = body;
@@ -59,7 +59,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const db = await getDb();
+    const db = getDb();
     const { id } = await params;
     await db.delete(channels).where(eq(channels.id, parseInt(id)));
     saveDb();

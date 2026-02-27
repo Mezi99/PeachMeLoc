@@ -72,7 +72,7 @@ export async function GET(
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   try {
-    const db = await getDb();
+    const db = getDb();
     const { agentId } = await params;
     const messages = await db
       .select()
@@ -91,7 +91,7 @@ export async function POST(
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   try {
-    const db = await getDb();
+    const db = getDb();
     const { agentId } = await params;
     const agentIdNum = parseInt(agentId);
     const body = await req.json();

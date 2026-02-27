@@ -4,7 +4,7 @@ import { agents } from "@/db/schema";
 
 export async function GET() {
   try {
-    const db = await getDb();
+    const db = getDb();
     const allAgents = await db.select().from(agents).orderBy(agents.createdAt);
     return NextResponse.json(allAgents);
   } catch (error) {
@@ -15,7 +15,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const db = await getDb();
+    const db = getDb();
     const body = await req.json();
     const { name, avatar, personaPrompt, llmBaseUrl, llmApiKey, llmModel } = body;
 

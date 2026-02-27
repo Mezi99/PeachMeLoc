@@ -27,7 +27,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const db = await getDb();
+  const db = getDb();
   const allChannels = await db.select().from(channels).orderBy(channels.createdAt);
   const allAgents = await db.select().from(agents).orderBy(agents.name);
 

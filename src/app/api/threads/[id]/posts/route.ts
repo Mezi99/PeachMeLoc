@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const db = await getDb();
+    const db = getDb();
     const { id } = await params;
     const threadPosts = await db
       .select()
@@ -27,7 +27,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const db = await getDb();
+    const db = getDb();
     const { id } = await params;
     const threadId = parseInt(id);
     const body = await req.json();

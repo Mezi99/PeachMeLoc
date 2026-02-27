@@ -117,7 +117,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const db = await getDb();
+    const db = getDb();
     const { id } = await params;
     const threadId = parseInt(id);
 

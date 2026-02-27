@@ -1,25 +1,16 @@
-import initSqlJs, { Database as SqlJsDatabase } from "sql.js";
-import { drizzle } from "drizzle-orm/sql.js";
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import { readFileSync } from "fs";
 import { join } from "path";
 
 const DB_PATH = "./peachme.db";
 const MIGRATIONS_FOLDER = "./src/db/migrations";
 
-async function runMigrations() {
-  const SQL = await initSqlJs();
-
-  let sqlite: SqlJsDatabase;
-  if (existsSync(DB_PATH)) {
-    const fileBuffer = readFileSync(DB_PATH);
-    sqlite = new SQL.Database(fileBuffer);
-  } else {
-    sqlite = new SQL.Database();
-  }
-
+function runMigrations() {
+  const sqlite = new Database(DB_PATH);
   const db = drizzle(sqlite);
 
-  // Run migrations manually using sql.js
+  // Run migrations manually using better-sqlite3
   const migrationFiles = [
     "0000_glorious_natasha_romanoff.sql",
     "0001_old_centennial.sql",
@@ -28,16 +19,17 @@ async function runMigrations() {
 
   for (const file of migrationFiles) {
     const sql = readFileSync(join(MIGRATIONS_FOLDER, file), "utf-8");
-    sqlite.run(sql);
+    // Split by semicolons and run each statement
+    const statements = sql.split(';').filter(s => s.trim());
+    for (const stmt of statements) {
+      if (stmt.trim()) {
+        sqlite.exec(stmt);
+      }
+    }
     console.log(`Executed migration: ${file}`);
   }
 
-  // Save the database after migrations
-  const data = sqlite.export();
-  const buffer = Buffer.from(data);
-  writeFileSync(DB_PATH, buffer);
-  
   console.log("Migrations complete!");
 }
 
-runMigrations().catch(console.error);
+runMigrations();
