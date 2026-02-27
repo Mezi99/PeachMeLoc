@@ -112,6 +112,17 @@ async function buildPrivateDMContext(db: ReturnType<typeof getDb>, agentId: numb
   return lines.join("\n");
 }
 
+// Extract @mentions from content and return mentioned agent names
+function extractMentions(content: string): string[] {
+  const mentionRegex = /@(\w+)/g;
+  const mentions: string[] = [];
+  let match;
+  while ((match = mentionRegex.exec(content)) !== null) {
+    mentions.push(match[1]);
+  }
+  return [...new Set(mentions)]; // Remove duplicates
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -149,13 +160,15 @@ export async function POST(
       return NextResponse.json({ error: "Thread not found" }, { status: 404 });
     }
 
-    // Get main API fallback settings
+    // Get main API fallback settings and hop counter
     const mainApiRows = await db.select().from(userSettings).where(eq(userSettings.id, 1));
     const mainApi = mainApiRows[0] ?? {
       mainApiBaseUrl: "https://api.openai.com/v1",
       mainApiKey: "",
       mainApiModel: "gpt-4o-mini",
+      hopCounter: 2,
     };
+    const hopCounter = mainApi.hopCounter ?? 2;
 
     // Get existing posts for this thread (the active conversation)
     const existingPosts = await db
@@ -187,22 +200,44 @@ export async function POST(
       return NextResponse.json({ error: "No active agents found" }, { status: 400 });
     }
 
-    // Each agent responds in priority order
-    for (const agent of orderedAgents) {
-      // Build this agent's private DM context (unique per agent)
-      const privateDMContext = await buildPrivateDMContext(db, agent.id);
+    // Track which agents have responded in this generation cycle
+    const agentsRespondedThisRound = new Set<number>();
+    
+    // Current round's agents to respond
+    let currentRoundAgents = orderedAgents;
+    let currentHop = 0;
+    
+    // Loop for agent-to-agent replies (hop counter)
+    while (currentHop < hopCounter && currentRoundAgents.length > 0) {
+      // Get latest posts for context (includes posts from previous hops)
+      const latestPosts = await db
+        .select()
+        .from(posts)
+        .where(eq(posts.threadId, threadId))
+        .orderBy(asc(posts.createdAt));
+      
+      // Track agents to respond in next hop
+      const nextRoundMentionedIds: number[] = [];
+      
+      for (const agent of currentRoundAgents) {
+        // Skip if already responded in this thread (prevent duplicate)
+        if (agentsRespondedThisRound.has(agent.id)) continue;
+        agentsRespondedThisRound.add(agent.id);
 
-      // Compose system prompt with layered context
-      const contextSections: string[] = [];
-      if (publicContext) contextSections.push(publicContext);
-      if (privateDMContext) contextSections.push(privateDMContext);
+        // Build this agent's private DM context (unique per agent)
+        const privateDMContext = await buildPrivateDMContext(db, agent.id);
 
-      const contextBlock =
-        contextSections.length > 0
-          ? `\n\n${contextSections.join("\n\n")}\n\n== End of Context ==`
-          : "";
+        // Compose system prompt with layered context
+        const contextSections: string[] = [];
+        if (publicContext) contextSections.push(publicContext);
+        if (privateDMContext) contextSections.push(privateDMContext);
 
-      const systemPrompt = `You are ${agent.name}, a member of the PeachMe forum.
+        const contextBlock =
+          contextSections.length > 0
+            ? `\n\n${contextSections.join("\n\n")}\n\n== End of Context ==`
+            : "";
+
+        const systemPrompt = `You are ${agent.name}, a member of the PeachMe forum.
 
 Your persona:
 ${agent.personaPrompt}${contextBlock}
@@ -216,66 +251,92 @@ Important rules:
 - Write naturally as a forum member — conversational, opinionated, engaging
 - Keep responses focused and reasonably concise (2-4 paragraphs max)
 - React to what others have said in this thread
+- You CAN mention other agents by using @username to get their attention
 - Do NOT prefix your message with your name or any label
 - Do NOT use markdown headers, just plain conversational text`;
 
-      // Build conversation history for this thread
-      const conversationHistory = existingPosts.map((p) => ({
-        role: p.authorType === "human" ? "user" : "assistant",
-        content: `[${p.authorName}]: ${p.content}`,
-      }));
+        // Build conversation history for this thread
+        const conversationHistory = latestPosts.map((p) => ({
+          role: p.authorType === "human" ? "user" : "assistant",
+          content: `[${p.authorName}]: ${p.content}`,
+        }));
 
-      const messages = [
-        { role: "system", content: systemPrompt },
-        ...conversationHistory,
-        {
-          role: "user",
-          content: `Please respond to this forum thread as ${agent.name}.`,
-        },
-      ];
+        const messages = [
+          { role: "system", content: systemPrompt },
+          ...conversationHistory,
+          {
+            role: "user",
+            content: `Please respond to this forum thread as ${agent.name}.`,
+          },
+        ];
 
-      // Use agent's own LLM config, or fall back to Main API if no key is set
-      const effectiveBaseUrl = agent.llmApiKey.trim() ? agent.llmBaseUrl : mainApi.mainApiBaseUrl;
-      const effectiveApiKey = agent.llmApiKey.trim() ? agent.llmApiKey : mainApi.mainApiKey;
-      const effectiveModel = agent.llmApiKey.trim() ? agent.llmModel : mainApi.mainApiModel;
+        // Use agent's own LLM config, or fall back to Main API if no key is set
+        const effectiveBaseUrl = agent.llmApiKey.trim() ? agent.llmBaseUrl : mainApi.mainApiBaseUrl;
+        const effectiveApiKey = agent.llmApiKey.trim() ? agent.llmApiKey : mainApi.mainApiKey;
+        const effectiveModel = agent.llmApiKey.trim() ? agent.llmModel : mainApi.mainApiModel;
 
-      try {
-        const content = await callLLM(
-          effectiveBaseUrl,
-          effectiveApiKey,
-          effectiveModel,
-          messages
-        );
+        try {
+          const content = await callLLM(
+            effectiveBaseUrl,
+            effectiveApiKey,
+            effectiveModel,
+            messages
+          );
 
-        const [agentPost] = await db
-          .insert(posts)
-          .values({
-            threadId,
-            content,
-            authorType: "agent",
-            authorName: agent.name,
-            authorAvatar: agent.avatar,
-            agentId: agent.id,
-            llmPrompt: JSON.stringify(messages),
-          })
-          .returning();
+          const [agentPost] = await db
+            .insert(posts)
+            .values({
+              threadId,
+              content,
+              authorType: "agent",
+              authorName: agent.name,
+              authorAvatar: agent.avatar,
+              agentId: agent.id,
+              llmPrompt: JSON.stringify(messages),
+            })
+            .returning();
 
-        newAgentPosts.push(agentPost);
-      } catch (llmError) {
-        console.error(`LLM error for agent ${agent.name}:`, llmError);
-        const [errorPost] = await db
-          .insert(posts)
-          .values({
-            threadId,
-            content: `[Error: Could not generate response. Check API key and model settings for this agent.]`,
-            authorType: "agent",
-            authorName: agent.name,
-            authorAvatar: agent.avatar,
-            agentId: agent.id,
-            llmPrompt: JSON.stringify(messages),
-          })
-          .returning();
-        newAgentPosts.push(errorPost);
+          newAgentPosts.push(agentPost);
+          
+          // Check for @mentions in the response (agent-to-agent)
+          if (hopCounter > 0) {
+            const responseMentions = extractMentions(content);
+            // Find agents mentioned by name
+            const mentionedByName = allActiveAgents.filter(a => 
+              responseMentions.includes(a.name) && a.id !== agent.id
+            );
+            for (const mentioned of mentionedByName) {
+              if (!nextRoundMentionedIds.includes(mentioned.id) && !agentsRespondedThisRound.has(mentioned.id)) {
+                nextRoundMentionedIds.push(mentioned.id);
+              }
+            }
+          }
+        } catch (llmError) {
+          console.error(`LLM error for agent ${agent.name}:`, llmError);
+          const [errorPost] = await db
+            .insert(posts)
+            .values({
+              threadId,
+              content: `[Error: Could not generate response. Check API key and model settings for this agent.]`,
+              authorType: "agent",
+              authorName: agent.name,
+              authorAvatar: agent.avatar,
+              agentId: agent.id,
+              llmPrompt: JSON.stringify(messages),
+            })
+            .returning();
+          newAgentPosts.push(errorPost);
+        }
+      }
+      
+      // Move to next hop
+      currentHop++;
+      
+      // Get agents for next round (only the ones mentioned)
+      if (nextRoundMentionedIds.length > 0 && currentHop < hopCounter) {
+        currentRoundAgents = allActiveAgents.filter(a => nextRoundMentionedIds.includes(a.id));
+      } else {
+        currentRoundAgents = [];
       }
     }
 

@@ -8,6 +8,7 @@ interface UserSettingsData {
   mainApiBaseUrl: string;
   mainApiKey: string;
   mainApiModel: string;
+  hopCounter: number;
 }
 
 interface MySettingsFormProps {
@@ -19,6 +20,7 @@ export default function MySettingsForm({ initialSettings }: MySettingsFormProps)
   const [mainApiBaseUrl, setMainApiBaseUrl] = useState(initialSettings.mainApiBaseUrl);
   const [mainApiKey, setMainApiKey] = useState(initialSettings.mainApiKey);
   const [mainApiModel, setMainApiModel] = useState(initialSettings.mainApiModel);
+  const [hopCounter, setHopCounter] = useState(initialSettings.hopCounter || 2);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -32,7 +34,7 @@ export default function MySettingsForm({ initialSettings }: MySettingsFormProps)
       const res = await fetch("/api/user-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nickname, mainApiBaseUrl, mainApiKey, mainApiModel }),
+        body: JSON.stringify({ nickname, mainApiBaseUrl, mainApiKey, mainApiModel, hopCounter }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -118,6 +120,35 @@ export default function MySettingsForm({ initialSettings }: MySettingsFormProps)
               placeholder="gpt-4o-mini"
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm font-mono focus:outline-none focus:border-indigo-500 transition-colors"
             />
+          </div>
+        </div>
+      </section>
+
+      {/* Loop Guard section */}
+      <section>
+        <h3 className="text-base font-semibold text-white mb-1 flex items-center gap-2">
+          <span>🔄</span> Loop Guard
+        </h3>
+        <p className="text-sm text-gray-400 mb-4">
+          Control how many times agents can reply to each other when they mention each other.
+          Human messages reset the counter.
+        </p>
+        <div className="bg-gray-900 rounded-xl p-5 space-y-4 border border-gray-800">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">
+              Max Reply Hops
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="10"
+              value={hopCounter}
+              onChange={(e) => setHopCounter(parseInt(e.target.value) || 0)}
+              className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+            <p className="text-xs text-gray-500 mt-1.5">
+              Set to 0 to disable agent-to-agent replies. Recommended: 1-3.
+            </p>
           </div>
         </div>
       </section>

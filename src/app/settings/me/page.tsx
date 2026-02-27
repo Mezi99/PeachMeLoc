@@ -12,7 +12,7 @@ export default async function MySettingsPage() {
   if (rows.length === 0) {
     const [created] = await db
       .insert(userSettings)
-      .values({ id: 1, nickname: "You", mainApiBaseUrl: "https://api.openai.com/v1", mainApiKey: "", mainApiModel: "gpt-4o-mini" })
+      .values({ id: 1, nickname: "You", mainApiBaseUrl: "https://api.openai.com/v1", mainApiKey: "", mainApiModel: "gpt-4o-mini", hopCounter: 2 })
       .returning();
     rows = [created];
   }
@@ -33,6 +33,7 @@ export default async function MySettingsPage() {
           mainApiBaseUrl: settings.mainApiBaseUrl,
           mainApiKey: settings.mainApiKey,
           mainApiModel: settings.mainApiModel,
+          hopCounter: settings.hopCounter ?? 2,
         }}
       />
     </div>

@@ -60,5 +60,6 @@ export const userSettings = sqliteTable("user_settings", {
   mainApiBaseUrl: text("main_api_base_url").notNull().default("https://api.openai.com/v1"),
   mainApiKey: text("main_api_key").notNull().default(""),
   mainApiModel: text("main_api_model").notNull().default("gpt-4o-mini"),
+  hopCounter: integer("hop_counter").notNull().default(2), // Max agent-to-agent reply hops
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });

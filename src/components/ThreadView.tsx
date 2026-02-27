@@ -32,6 +32,27 @@ function formatTime(iso: string | null) {
   return d.toLocaleDateString();
 }
 
+// Render @mentions in posts with bold and different color (for agent posts)
+function renderContentWithMentions(content: string, isAgent: boolean) {
+  if (!isAgent) {
+    // For human posts, just render as-is
+    return content;
+  }
+  
+  // For agent posts, highlight @mentions
+  const parts = content.split(/(@\w+)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('@')) {
+      return (
+        <span key={i} className="font-bold text-yellow-400">
+          {part}
+        </span>
+      );
+    }
+    return part;
+  });
+}
+
 function PromptButton({ prompt }: { prompt: string }) {
   const [show, setShow] = useState(false);
 
@@ -149,6 +170,7 @@ export default function ThreadView({ threadId, initialPosts }: ThreadViewProps) 
       <div className="space-y-4 mb-8">
         {postsList.map((post, idx) => {
           const isHuman = post.authorType === "human";
+          const isAgent = post.authorType === "agent";
           const isOP = idx === 0;
           return (
             <div
@@ -193,7 +215,7 @@ export default function ThreadView({ threadId, initialPosts }: ThreadViewProps) 
                       : "bg-gray-800 text-gray-200 rounded-tl-sm border border-gray-700"
                   }`}
                 >
-                  {post.content}
+                  {isAgent ? renderContentWithMentions(post.content, true) : post.content}
                 </div>
                 {!isHuman && post.llmPrompt && (
                   <PromptButton prompt={post.llmPrompt} />

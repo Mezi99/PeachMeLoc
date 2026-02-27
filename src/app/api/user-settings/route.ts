@@ -12,7 +12,7 @@ export async function GET() {
       // Auto-create the singleton row if it doesn't exist
       const [created] = await db
         .insert(userSettings)
-        .values({ id: 1, nickname: "You", mainApiBaseUrl: "https://api.openai.com/v1", mainApiKey: "", mainApiModel: "gpt-4o-mini" })
+        .values({ id: 1, nickname: "You", mainApiBaseUrl: "https://api.openai.com/v1", mainApiKey: "", mainApiModel: "gpt-4o-mini", hopCounter: 2 })
         .returning();
       saveDb();
       return NextResponse.json(created);
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     await syncForumFromCookie(); // Sync forum based on cookie
     const db = getDb();
     const body = await req.json();
-    const { nickname, mainApiBaseUrl, mainApiKey, mainApiModel } = body;
+    const { nickname, mainApiBaseUrl, mainApiKey, mainApiModel, hopCounter } = body;
 
     // Upsert the singleton row (id=1)
     const existing = await db.select().from(userSettings).where(eq(userSettings.id, 1));
@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
           mainApiBaseUrl: mainApiBaseUrl ?? "https://api.openai.com/v1",
           mainApiKey: mainApiKey ?? "",
           mainApiModel: mainApiModel ?? "gpt-4o-mini",
+          hopCounter: hopCounter ?? 2,
           updatedAt: new Date(),
         })
         .returning();
@@ -56,6 +57,7 @@ export async function POST(req: NextRequest) {
           ...(mainApiBaseUrl !== undefined && { mainApiBaseUrl }),
           ...(mainApiKey !== undefined && { mainApiKey }),
           ...(mainApiModel !== undefined && { mainApiModel }),
+          ...(hopCounter !== undefined && { hopCounter }),
           updatedAt: new Date(),
         })
         .where(eq(userSettings.id, 1))
