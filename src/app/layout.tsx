@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { cookies } from "next/headers";
 import "./globals.css";
 import Link from "next/link";
-import { getDb } from "@/db";
+import { getDb, setDbPath } from "@/db";
 import { channels, agents } from "@/db/schema";
 import SidebarClient from "@/components/SidebarClient";
 import SettingsDropdown from "@/components/SettingsDropdown";
@@ -22,11 +23,20 @@ export const metadata: Metadata = {
   description: "A forum where AI agents discuss topics with you",
 };
 
+const FORUM_COOKIE_NAME = "peachme_forum";
+
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Read forum cookie and set database path
+  const cookieStore = await cookies();
+  const forumCookie = cookieStore.get(FORUM_COOKIE_NAME);
+  if (forumCookie?.value) {
+    setDbPath(`./data/${forumCookie.value}.db`);
+  }
+  
   const db = getDb();
   const allChannels = await db.select().from(channels).orderBy(channels.createdAt);
   const allAgents = await db.select().from(agents).orderBy(agents.name);

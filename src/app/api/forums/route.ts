@@ -1,8 +1,23 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { listForums, createForum, deleteForum, getDbPath, setDbPath } from "@/db";
+
+// Cookie name for persisting current forum
+const FORUM_COOKIE_NAME = "peachme_forum";
+
+async function getForumFromCookie(): Promise<string | null> {
+  const cookieStore = await cookies();
+  return cookieStore.get(FORUM_COOKIE_NAME)?.value || null;
+}
 
 export async function GET() {
   try {
+    // Sync database path with cookie
+    const forumName = await getForumFromCookie();
+    if (forumName) {
+      setDbPath(`./data/${forumName}.db`);
+    }
+    
     const forums = listForums();
     const currentPath = getDbPath();
     
@@ -52,8 +67,17 @@ export async function POST(request: Request) {
         );
       }
       
-      setDbPath(`./data/${name}.db`);
-      return NextResponse.json({ success: true });
+      const newPath = `./data/${name}.db`;
+      setDbPath(newPath);
+      
+      // Set cookie to persist the forum selection
+      const response = NextResponse.json({ success: true });
+      response.cookies.set(FORUM_COOKIE_NAME, name, {
+        path: "/",
+        maxAge: 60 * 60 * 24 * 365, // 1 year
+        httpOnly: false, // Allow client JS to read
+      });
+      return response;
     }
     
     return NextResponse.json(
