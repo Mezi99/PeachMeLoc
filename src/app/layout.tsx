@@ -5,6 +5,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import { channels, agents } from "@/db/schema";
 import SidebarClient from "@/components/SidebarClient";
+import SettingsDropdown from "@/components/SettingsDropdown";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,13 +44,7 @@ export default async function RootLayout({
             </Link>
           </div>
           <div className="flex-1 px-6 flex items-center justify-end gap-4">
-            <Link
-              href="/settings"
-              className="text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1.5"
-            >
-              <span>⚙️</span>
-              <span>Manage Agents</span>
-            </Link>
+            <SettingsDropdown />
           </div>
         </header>
 

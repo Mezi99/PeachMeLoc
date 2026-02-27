@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { posts, threads, agents, directMessages, channels } from "@/db/schema";
+import { posts, threads, agents, directMessages, channels, userSettings } from "@/db/schema";
 import { eq, asc, desc, ne } from "drizzle-orm";
 
 async function callLLM(
@@ -144,6 +144,14 @@ export async function POST(
       return NextResponse.json({ error: "No active agents found" }, { status: 400 });
     }
 
+    // Get main API fallback settings
+    const mainApiRows = await db.select().from(userSettings).where(eq(userSettings.id, 1));
+    const mainApi = mainApiRows[0] ?? {
+      mainApiBaseUrl: "https://api.openai.com/v1",
+      mainApiKey: "",
+      mainApiModel: "gpt-4o-mini",
+    };
+
     // Get existing posts for this thread (the active conversation)
     const existingPosts = await db
       .select()
@@ -207,11 +215,16 @@ Important rules:
         },
       ];
 
+      // Use agent's own LLM config, or fall back to Main API if no key is set
+      const effectiveBaseUrl = agent.llmApiKey.trim() ? agent.llmBaseUrl : mainApi.mainApiBaseUrl;
+      const effectiveApiKey = agent.llmApiKey.trim() ? agent.llmApiKey : mainApi.mainApiKey;
+      const effectiveModel = agent.llmApiKey.trim() ? agent.llmModel : mainApi.mainApiModel;
+
       try {
         const content = await callLLM(
-          agent.llmBaseUrl,
-          agent.llmApiKey,
-          agent.llmModel,
+          effectiveBaseUrl,
+          effectiveApiKey,
+          effectiveModel,
           messages
         );
 

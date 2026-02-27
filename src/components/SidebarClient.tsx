@@ -209,7 +209,7 @@ export default function SidebarClient({ channels: initialChannels, agents }: Sid
             {agents.length === 0 && (
               <p className="text-xs text-gray-600 px-3 py-2">
                 No agents yet.{" "}
-                <Link href="/settings" className="text-indigo-400 hover:underline">
+                <Link href="/settings/agents" className="text-indigo-400 hover:underline">
                   Add one
                 </Link>
               </p>

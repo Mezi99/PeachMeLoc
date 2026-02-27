@@ -50,3 +50,13 @@ export const directMessages = sqliteTable("direct_messages", {
   content: text("content").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
+
+// Singleton row (id=1) for user/app settings
+export const userSettings = sqliteTable("user_settings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  nickname: text("nickname").notNull().default("You"),
+  mainApiBaseUrl: text("main_api_base_url").notNull().default("https://api.openai.com/v1"),
+  mainApiKey: text("main_api_key").notNull().default(""),
+  mainApiModel: text("main_api_model").notNull().default("gpt-4o-mini"),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});

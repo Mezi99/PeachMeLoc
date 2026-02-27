@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { directMessages, agents, posts, threads, channels } from "@/db/schema";
+import { directMessages, agents, posts, threads, channels, userSettings } from "@/db/schema";
 import { eq, asc, desc } from "drizzle-orm";
 
 /**
@@ -105,6 +105,19 @@ export async function POST(
       return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     }
 
+    // Get main API fallback settings
+    const mainApiRows = await db.select().from(userSettings).where(eq(userSettings.id, 1));
+    const mainApi = mainApiRows[0] ?? {
+      mainApiBaseUrl: "https://api.openai.com/v1",
+      mainApiKey: "",
+      mainApiModel: "gpt-4o-mini",
+    };
+
+    // Resolve effective LLM config (agent-specific or fallback to Main API)
+    const effectiveBaseUrl = agent.llmApiKey.trim() ? agent.llmBaseUrl : mainApi.mainApiBaseUrl;
+    const effectiveApiKey = agent.llmApiKey.trim() ? agent.llmApiKey : mainApi.mainApiKey;
+    const effectiveModel = agent.llmApiKey.trim() ? agent.llmModel : mainApi.mainApiModel;
+
     // Save human message first
     const [humanMsg] = await db
       .insert(directMessages)
@@ -155,21 +168,21 @@ Important rules:
       { role: "user", content },
     ];
 
-    // Call LLM
+    // Call LLM using effective (agent-specific or fallback) config
     let agentContent = "(no response)";
     try {
-      const url = agent.llmBaseUrl.endsWith("/")
-        ? agent.llmBaseUrl + "chat/completions"
-        : agent.llmBaseUrl + "/chat/completions";
+      const url = effectiveBaseUrl.endsWith("/")
+        ? effectiveBaseUrl + "chat/completions"
+        : effectiveBaseUrl + "/chat/completions";
 
       const response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${agent.llmApiKey}`,
+          Authorization: `Bearer ${effectiveApiKey}`,
         },
         body: JSON.stringify({
-          model: agent.llmModel,
+          model: effectiveModel,
           messages: llmMessages,
           max_tokens: 1024,
           temperature: 0.85,
