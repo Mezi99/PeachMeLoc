@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, saveDb } from "@/db";
+import { getDb, saveDb, syncForumFromCookie } from "@/db";
 import { posts, threads, agents, directMessages, channels, userSettings } from "@/db/schema";
 import { eq, asc, desc, ne } from "drizzle-orm";
 
@@ -117,6 +117,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await syncForumFromCookie(); // Sync forum based on cookie
     const db = getDb();
     const { id } = await params;
     const threadId = parseInt(id);

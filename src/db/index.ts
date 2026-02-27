@@ -3,10 +3,12 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema";
 import { existsSync, mkdirSync, readdirSync, unlinkSync, readFileSync, closeSync, openSync, statSync } from "fs";
 import path from "path";
+import { cookies } from "next/headers";
 
 const DB_DIR = "./data";
 const DB_EXTENSION = ".db";
 const MIGRATIONS_FOLDER = "./src/db/migrations";
+const FORUM_COOKIE_NAME = "peachme_forum";
 
 // Store the current database path in memory
 let currentDbPath: string = path.join(DB_DIR, `peachme${DB_EXTENSION}`);
@@ -73,6 +75,29 @@ export function setDbPath(dbPath: string): void {
   }
   dbInstance = null;
   currentDbPath = dbPath;
+}
+
+// Sync the database path based on the forum cookie
+// This should be called at the start of each API route
+export async function syncForumFromCookie(): Promise<string> {
+  const cookieStore = await cookies();
+  const forumName = cookieStore.get(FORUM_COOKIE_NAME)?.value || null;
+  
+  if (forumName) {
+    const newPath = path.join(DB_DIR, `${forumName}${DB_EXTENSION}`);
+    // Only switch if the path is different
+    if (newPath !== currentDbPath) {
+      setDbPath(newPath);
+    }
+    return forumName;
+  }
+  
+  // Default to peachme if no cookie
+  const defaultPath = path.join(DB_DIR, `peachme${DB_EXTENSION}`);
+  if (defaultPath !== currentDbPath) {
+    setDbPath(defaultPath);
+  }
+  return 'peachme';
 }
 
 // Get or create database instance

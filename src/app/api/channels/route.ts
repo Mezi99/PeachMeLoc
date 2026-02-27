@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, saveDb } from "@/db";
+import { getDb, saveDb, syncForumFromCookie } from "@/db";
 import { channels } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function GET() {
   try {
+    await syncForumFromCookie(); // Sync forum based on cookie
     const db = getDb();
     const all = await db.select().from(channels).orderBy(channels.createdAt);
     return NextResponse.json(all);
@@ -16,6 +17,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    await syncForumFromCookie(); // Sync forum based on cookie
     const db = getDb();
     const body = await req.json();
     const { name, description, emoji } = body;

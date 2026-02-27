@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, saveDb } from "@/db";
+import { getDb, saveDb, syncForumFromCookie } from "@/db";
 import { directMessages, agents, posts, threads, channels, userSettings } from "@/db/schema";
 import { eq, asc, desc } from "drizzle-orm";
 
@@ -72,6 +72,7 @@ export async function GET(
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   try {
+    await syncForumFromCookie(); // Sync forum based on cookie
     const db = getDb();
     const { agentId } = await params;
     const messages = await db
@@ -91,6 +92,7 @@ export async function POST(
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   try {
+    await syncForumFromCookie(); // Sync forum based on cookie
     const db = getDb();
     const { agentId } = await params;
     const agentIdNum = parseInt(agentId);

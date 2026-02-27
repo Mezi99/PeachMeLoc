@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, saveDb } from "@/db";
+import { getDb, saveDb, syncForumFromCookie } from "@/db";
 import { channels } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -8,6 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await syncForumFromCookie(); // Sync forum based on cookie
     const db = getDb();
     const { id } = await params;
     const [channel] = await db.select().from(channels).where(eq(channels.id, parseInt(id)));
@@ -26,6 +27,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await syncForumFromCookie(); // Sync forum based on cookie
     const db = getDb();
     const { id } = await params;
     const body = await req.json();
@@ -59,6 +61,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await syncForumFromCookie(); // Sync forum based on cookie
     const db = getDb();
     const { id } = await params;
     await db.delete(channels).where(eq(channels.id, parseInt(id)));

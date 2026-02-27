@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, saveDb } from "@/db";
+import { getDb, saveDb, syncForumFromCookie } from "@/db";
 import { agents } from "@/db/schema";
 
 export async function GET() {
   try {
+    await syncForumFromCookie(); // Sync forum based on cookie
     const db = getDb();
     const allAgents = await db.select().from(agents).orderBy(agents.createdAt);
     return NextResponse.json(allAgents);
@@ -15,6 +16,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    await syncForumFromCookie(); // Sync forum based on cookie
     const db = getDb();
     const body = await req.json();
     const { name, avatar, personaPrompt, llmBaseUrl, llmApiKey, llmModel } = body;
