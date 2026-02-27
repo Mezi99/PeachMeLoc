@@ -1,7 +1,71 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { directMessages, agents } from "@/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { directMessages, agents, posts, threads, channels } from "@/db/schema";
+import { eq, asc, desc } from "drizzle-orm";
+
+/**
+ * Build a shared public forum context block.
+ * Fetches the last 40 posts across ALL public threads.
+ * All agents see this identically — it represents shared public knowledge.
+ */
+async function buildPublicForumContext(): Promise<string> {
+  const recentPosts = await db
+    .select({
+      content: posts.content,
+      authorName: posts.authorName,
+      threadId: posts.threadId,
+      threadTitle: threads.title,
+      threadCategory: threads.category,
+      channelName: channels.name,
+      channelEmoji: channels.emoji,
+    })
+    .from(posts)
+    .innerJoin(threads, eq(posts.threadId, threads.id))
+    .leftJoin(channels, eq(threads.channelId, channels.id))
+    .orderBy(desc(posts.createdAt))
+    .limit(40);
+
+  if (recentPosts.length === 0) {
+    return "";
+  }
+
+  // Group by thread for readability
+  const byThread = new Map<
+    number,
+    {
+      title: string;
+      category: string;
+      channelLabel: string;
+      posts: typeof recentPosts;
+    }
+  >();
+  for (const p of recentPosts) {
+    if (!byThread.has(p.threadId)) {
+      const channelLabel = p.channelName
+        ? `${p.channelEmoji ?? ""} #${p.channelName}`.trim()
+        : "General";
+      byThread.set(p.threadId, {
+        title: p.threadTitle,
+        category: p.threadCategory,
+        channelLabel,
+        posts: [],
+      });
+    }
+    byThread.get(p.threadId)!.posts.push(p);
+  }
+
+  const lines: string[] = ["== Public Forum — Recent Activity (shared knowledge) =="];
+  for (const [, thread] of byThread) {
+    lines.push(`\nThread: "${thread.title}" [${thread.category}] in ${thread.channelLabel}`);
+    for (const p of [...thread.posts].reverse()) {
+      lines.push(
+        `  ${p.authorName}: ${p.content.slice(0, 300)}${p.content.length > 300 ? "…" : ""}`
+      );
+    }
+  }
+
+  return lines.join("\n");
+}
 
 export async function GET(
   _req: NextRequest,
@@ -41,7 +105,7 @@ export async function POST(
       return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     }
 
-    // Save human message
+    // Save human message first
     const [humanMsg] = await db
       .insert(directMessages)
       .values({
@@ -51,25 +115,37 @@ export async function POST(
       })
       .returning();
 
-    // Get conversation history for context
+    // Get this agent's full DM history (including the message we just saved)
     const history = await db
       .select()
       .from(directMessages)
       .where(eq(directMessages.agentId, agentIdNum))
       .orderBy(asc(directMessages.createdAt));
 
-    // Build messages for LLM
-    const systemPrompt = `You are ${agent.name}, having a private direct message conversation with a forum user.
+    // Build shared public forum context (same for all agents — public knowledge)
+    const publicContext = await buildPublicForumContext();
+
+    // Compose system prompt with layered context
+    const contextBlock = publicContext
+      ? `\n\n${publicContext}\n\n== End of Public Context ==`
+      : "";
+
+    const systemPrompt = `You are ${agent.name}, a member of the PeachMe forum, having a private direct message conversation with the user.
 
 Your persona:
-${agent.personaPrompt}
+${agent.personaPrompt}${contextBlock}
 
 Important rules:
 - Stay in character as ${agent.name} at all times
-- This is a private 1-on-1 conversation, so be more personal and direct than in public forum posts
+- You have memory of all public forum threads above — you can reference them naturally in conversation
+- This is a PRIVATE 1-on-1 DM — be more personal, direct, and intimate than in public forum posts
+- Your relationship with this user is shaped by your DM history below — honor it
+- Do NOT reveal or reference other agents' private DMs (you don't know about them)
 - Keep responses conversational and natural
 - Do NOT prefix your message with your name or any label`;
 
+    // Build LLM message list from DM history
+    // All messages before the last one are history; the last one is the current user message
     const llmMessages = [
       { role: "system", content: systemPrompt },
       ...history.slice(0, -1).map((m) => ({
