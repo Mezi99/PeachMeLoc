@@ -1,7 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, saveDb, syncForumFromCookie } from "@/db";
+import { getDb, saveDb, syncForumFromCookie, withDbClient } from "@/db";
 import { posts, threads, agents, directMessages, channels, userSettings } from "@/db/schema";
 import { eq, asc, desc, ne } from "drizzle-orm";
+
+// Ensure hop_counter column exists (run migration if needed)
+async function ensureHopCounterColumn() {
+  try {
+    await withDbClient((client) => {
+      // Check if column exists
+      const result = client.prepare("PRAGMA table_info(user_settings)").all() as { name: string }[];
+      const hasHopCounter = result.some((col) => col.name === "hop_counter");
+      if (!hasHopCounter) {
+        console.log("Adding hop_counter column to user_settings...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN hop_counter INTEGER NOT NULL DEFAULT 2;");
+      }
+    });
+  } catch (e) {
+    console.error("Migration error:", e);
+  }
+}
 
 async function callLLM(
   baseUrl: string,
@@ -129,6 +146,7 @@ export async function POST(
 ) {
   try {
     await syncForumFromCookie(); // Sync forum based on cookie
+    await ensureHopCounterColumn(); // Ensure column exists
     const db = getDb();
     const { id } = await params;
     const threadId = parseInt(id);

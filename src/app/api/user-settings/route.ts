@@ -1,11 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, saveDb, syncForumFromCookie } from "@/db";
+import { getDb, saveDb, syncForumFromCookie, withDbClient } from "@/db";
 import { userSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
+
+// Ensure hop_counter column exists (run migration if needed)
+async function ensureHopCounterColumn() {
+  try {
+    await withDbClient((client) => {
+      // Check if column exists
+      const result = client.prepare("PRAGMA table_info(user_settings)").all() as { name: string }[];
+      const hasHopCounter = result.some((col) => col.name === "hop_counter");
+      if (!hasHopCounter) {
+        console.log("Adding hop_counter column to user_settings...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN hop_counter INTEGER NOT NULL DEFAULT 2;");
+      }
+    });
+  } catch (e) {
+    console.error("Migration error:", e);
+  }
+}
 
 export async function GET() {
   try {
     await syncForumFromCookie(); // Sync forum based on cookie
+    await ensureHopCounterColumn(); // Ensure column exists
     const db = getDb();
     const rows = await db.select().from(userSettings).where(eq(userSettings.id, 1));
     if (rows.length === 0) {
@@ -27,6 +45,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     await syncForumFromCookie(); // Sync forum based on cookie
+    await ensureHopCounterColumn(); // Ensure column exists
     const db = getDb();
     const body = await req.json();
     const { nickname, mainApiBaseUrl, mainApiKey, mainApiModel, hopCounter } = body;
