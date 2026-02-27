@@ -20,6 +20,28 @@ async function ensureHopCounterColumn() {
   }
 }
 
+// Ensure system_prompt columns exist (run migration if needed)
+async function ensureSystemPromptColumns() {
+  try {
+    await withDbClient((client) => {
+      const result = client.prepare("PRAGMA table_info(user_settings)").all() as { name: string }[];
+      const hasPublicRules = result.some((col) => col.name === "public_important_rules");
+      const hasDmRules = result.some((col) => col.name === "dm_important_rules");
+      
+      if (!hasPublicRules) {
+        console.log("Adding public_important_rules column to user_settings...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN public_important_rules TEXT;");
+      }
+      if (!hasDmRules) {
+        console.log("Adding dm_important_rules column to user_settings...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN dm_important_rules TEXT;");
+      }
+    });
+  } catch (e) {
+    console.error("Migration error:", e);
+  }
+}
+
 async function callLLM(
   baseUrl: string,
   apiKey: string,
@@ -147,6 +169,7 @@ export async function POST(
   try {
     await syncForumFromCookie(); // Sync forum based on cookie
     await ensureHopCounterColumn(); // Ensure column exists
+    await ensureSystemPromptColumns(); // Ensure columns exist
     const db = getDb();
     const { id } = await params;
     const threadId = parseInt(id);
@@ -187,6 +210,32 @@ export async function POST(
       hopCounter: 2,
     };
     const hopCounter = mainApi.hopCounter ?? 2;
+    
+    // Get stored system prompt (or use default template)
+    // Now we use important rules instead of full prompt
+    const storedPublicRules = mainApi.publicImportantRules ?? mainApi.prototypePublicRules ?? null;
+    
+    // Default "Important rules" for public threads
+    const DEFAULT_PUBLIC_RULES = `- Stay in character as {agentName} at all times
+- You have memory of all public forum threads above — you can reference them naturally
+- Your private DM history with the user is personal — you may let it subtly influence your tone and relationship, but don't quote DMs verbatim in public
+- Write naturally as a forum member — conversational, opinionated, engaging
+- Keep responses focused and reasonably concise (2-4 paragraphs max)
+- React to what others have said in this thread
+- You CAN mention other agents by using @username to get their attention
+- Do NOT prefix your message with your name or any label
+- Do NOT use markdown headers, just plain conversational text`;
+    
+    // Default prototype prompt template
+    const DEFAULT_PROTOTYPE_PROMPT = `You are {agentName}, a member of the PeachMe forum.
+
+Your persona:
+{agentPersona}{contextBlock}
+
+You are now responding in the thread: "{threadTitle}" [{threadCategory}] in channel {channelName}.
+
+Important rules:
+{importantRules}`;
 
     // Get existing posts for this thread (the active conversation)
     const existingPosts = await db
@@ -255,23 +304,19 @@ export async function POST(
             ? `\n\n${contextSections.join("\n\n")}\n\n== End of Context ==`
             : "";
 
-        const systemPrompt = `You are ${agent.name}, a member of the PeachMe forum.
-
-Your persona:
-${agent.personaPrompt}${contextBlock}
-
-You are now responding in the thread: "${thread.title}" [${thread.category}] in channel ${channelLabel}.
-
-Important rules:
-- Stay in character as ${agent.name} at all times
-- You have memory of all public forum threads above — you can reference them naturally
-- Your private DM history with the user is personal — you may let it subtly influence your tone and relationship, but don't quote DMs verbatim in public
-- Write naturally as a forum member — conversational, opinionated, engaging
-- Keep responses focused and reasonably concise (2-4 paragraphs max)
-- React to what others have said in this thread
-- You CAN mention other agents by using @username to get their attention
-- Do NOT prefix your message with your name or any label
-- Do NOT use markdown headers, just plain conversational text`;
+        // Build prompt with stored important rules
+        const effectivePublicRules = storedPublicRules || DEFAULT_PUBLIC_RULES;
+        const publicRules = effectivePublicRules.replace(/{agentName}/g, agent.name);
+        
+        const promptTemplate = DEFAULT_PROTOTYPE_PROMPT;
+        const systemPrompt = promptTemplate
+          .replace(/{agentName}/g, agent.name)
+          .replace(/{agentPersona}/g, agent.personaPrompt)
+          .replace(/{contextBlock}/g, contextBlock)
+          .replace(/{threadTitle}/g, thread.title)
+          .replace(/{threadCategory}/g, thread.category)
+          .replace(/{channelName}/g, channelLabel)
+          .replace(/{importantRules}/g, publicRules);
 
         // Build conversation history for this thread
         const conversationHistory = latestPosts.map((p) => ({

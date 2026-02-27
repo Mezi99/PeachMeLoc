@@ -42,6 +42,14 @@ export default function SettingsDropdown() {
             <span>My Settings</span>
           </Link>
           <Link
+            href="/settings/prompt"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
+          >
+            <span>📋</span>
+            <span>Important Rules</span>
+          </Link>
+          <Link
             href="/settings/agents"
             onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"

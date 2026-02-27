@@ -1,7 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, saveDb, syncForumFromCookie } from "@/db";
+import { getDb, saveDb, syncForumFromCookie, withDbClient } from "@/db";
 import { directMessages, agents, posts, threads, channels, userSettings } from "@/db/schema";
 import { eq, asc, desc } from "drizzle-orm";
+
+// Ensure important_rules columns exist (run migration if needed)
+async function ensureImportantRulesColumns() {
+  try {
+    await withDbClient((client) => {
+      const result = client.prepare("PRAGMA table_info(user_settings)").all() as { name: string }[];
+      const hasPublicRules = result.some((col) => col.name === "public_important_rules");
+      const hasDmRules = result.some((col) => col.name === "dm_important_rules");
+      
+      if (!hasPublicRules) {
+        console.log("Adding public_important_rules column to user_settings...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN public_important_rules TEXT;");
+      }
+      if (!hasDmRules) {
+        console.log("Adding dm_important_rules column to user_settings...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN dm_important_rules TEXT;");
+      }
+    });
+  } catch (e) {
+    console.error("Migration error:", e);
+  }
+}
 
 /**
  * Build a shared public forum context block.
@@ -93,6 +115,7 @@ export async function POST(
 ) {
   try {
     await syncForumFromCookie(); // Sync forum based on cookie
+    await ensureImportantRulesColumns(); // Ensure columns exist
     const db = getDb();
     const { agentId } = await params;
     const agentIdNum = parseInt(agentId);
@@ -116,6 +139,27 @@ export async function POST(
       mainApiKey: "",
       mainApiModel: "gpt-4o-mini",
     };
+    
+    // Get stored DM important rules
+    const storedDmRules = mainApi.dmImportantRules ?? mainApi.prototypeDmRules ?? null;
+    
+    // Default "Important rules" for DM conversations
+    const DEFAULT_DM_RULES = `- Stay in character as {agentName} at all times
+- You have memory of all public forum threads above — you can reference them naturally in conversation
+- This is a PRIVATE 1-on-1 DM — be more personal, direct, and intimate than in public forum posts
+- Your relationship with this user is shaped by your DM history below — honor it
+- Do NOT reveal or reference other agents' private DMs (you don't know about them)
+- Keep responses conversational and natural
+- Do NOT prefix your message with your name or any label`;
+    
+    // Default prototype prompt template for DMs
+    const DEFAULT_DM_PROMPT = `You are {agentName}, a member of the PeachMe forum, having a private direct message conversation with the user.
+
+Your persona:
+{agentPersona}{contextBlock}
+
+Important rules:
+{dmRules}`;
 
     // Resolve effective LLM config (agent-specific or fallback to Main API)
     const effectiveBaseUrl = agent.llmApiKey.trim() ? agent.llmBaseUrl : mainApi.mainApiBaseUrl;
@@ -147,19 +191,16 @@ export async function POST(
       ? `\n\n${publicContext}\n\n== End of Public Context ==`
       : "";
 
-    const systemPrompt = `You are ${agent.name}, a member of the PeachMe forum, having a private direct message conversation with the user.
-
-Your persona:
-${agent.personaPrompt}${contextBlock}
-
-Important rules:
-- Stay in character as ${agent.name} at all times
-- You have memory of all public forum threads above — you can reference them naturally in conversation
-- This is a PRIVATE 1-on-1 DM — be more personal, direct, and intimate than in public forum posts
-- Your relationship with this user is shaped by your DM history below — honor it
-- Do NOT reveal or reference other agents' private DMs (you don't know about them)
-- Keep responses conversational and natural
-- Do NOT prefix your message with your name or any label`;
+    // Build prompt with stored important rules
+    const effectiveDmRules = storedDmRules || DEFAULT_DM_RULES;
+    const dmRules = effectiveDmRules.replace(/{agentName}/g, agent.name);
+    
+    const promptTemplate = DEFAULT_DM_PROMPT;
+    const systemPrompt = promptTemplate
+      .replace(/{agentName}/g, agent.name)
+      .replace(/{agentPersona}/g, agent.personaPrompt)
+      .replace(/{contextBlock}/g, contextBlock)
+      .replace(/{dmRules}/g, dmRules);
 
     // Build LLM message list from DM history
     // All messages before the last one are history; the last one is the current user message

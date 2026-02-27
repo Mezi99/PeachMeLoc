@@ -54,6 +54,9 @@ export const directMessages = sqliteTable("direct_messages", {
 });
 
 // Singleton row (id=1) for user/app settings
+// publicImportantRules: The "Important rules" section for public thread responses
+// dmImportantRules: The "Important rules" section for DM conversations
+// prototypePublicRules / prototypeDmRules: Default prototypes for reset functionality
 export const userSettings = sqliteTable("user_settings", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   nickname: text("nickname").notNull().default("You"),
@@ -61,5 +64,9 @@ export const userSettings = sqliteTable("user_settings", {
   mainApiKey: text("main_api_key").notNull().default(""),
   mainApiModel: text("main_api_model").notNull().default("gpt-4o-mini"),
   hopCounter: integer("hop_counter").notNull().default(2), // Max agent-to-agent reply hops
+  publicImportantRules: text("public_important_rules"), // User's custom public thread rules
+  dmImportantRules: text("dm_important_rules"), // User's custom DM rules
+  prototypePublicRules: text("prototype_public_rules"), // Default public rules
+  prototypeDmRules: text("prototype_dm_rules"), // Default DM rules
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });

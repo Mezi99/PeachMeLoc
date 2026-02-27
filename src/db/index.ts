@@ -42,7 +42,9 @@ function runMigrationsOnDb(dbPath: string) {
     "0002_user_settings.sql",
     "0003_llm_prompt.sql",
     "0004_agent_name_unique.sql",
-    "0005_hop_counter.sql"
+    "0005_hop_counter.sql",
+    "0006_system_prompt.sql",
+    "0007_important_rules.sql"
   ];
 
   for (const file of migrationFiles) {
