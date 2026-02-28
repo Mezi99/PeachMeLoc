@@ -158,7 +158,9 @@ export async function POST(
       mainApiBaseUrl: "https://api.openai.com/v1",
       mainApiKey: "",
       mainApiModel: "gpt-4o-mini",
+      nickname: "User",
     };
+    const userNickname = mainApi.nickname?.trim() || "User";
     
     // Get stored DM important rules
     const storedDmRules = mainApi.dmImportantRules ?? mainApi.prototypeDmRules ?? null;
@@ -236,15 +238,15 @@ Important rules:
 
     // Build LLM message list from DM history
     // All messages before the last one are history; the last one is the current user message
-    // Include post-instruction as SYSTEM role
+    // Include post-instruction as SYSTEM role AFTER conversation history
     const llmMessages = [
       { role: "system", content: systemPrompt },
-      { role: "system", content: dmPostInstruction },
       ...history.slice(0, -1).map((m) => ({
         role: m.role === "human" ? "user" : "assistant",
         content: m.content,
       })),
       { role: "user", content },
+      { role: "system", content: dmPostInstruction },
     ];
 
     // Call LLM using effective (agent-specific or fallback) config

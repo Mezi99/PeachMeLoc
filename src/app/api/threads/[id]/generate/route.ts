@@ -99,7 +99,7 @@ async function callLLM(
  * which is passed separately as the active conversation).
  * All agents see this identically — it represents shared public knowledge.
  */
-async function buildPublicForumContext(db: ReturnType<typeof getDb>, currentThreadId: number): Promise<string> {
+async function buildPublicForumContext(db: ReturnType<typeof getDb>, currentThreadId: number, userNickname: string): Promise<string> {
   // Get recent posts from OTHER threads (not the current one)
   const recentPosts = await db
     .select({
@@ -150,7 +150,7 @@ async function buildPublicForumContext(db: ReturnType<typeof getDb>, currentThre
  * Build the private DM context for a specific agent.
  * Only this agent's DMs with the user are included — other agents' DMs are never exposed.
  */
-async function buildPrivateDMContext(db: ReturnType<typeof getDb>, agentId: number): Promise<string> {
+async function buildPrivateDMContext(db: ReturnType<typeof getDb>, agentId: number, userNickname: string): Promise<string> {
   const dms = await db
     .select()
     .from(directMessages)
@@ -164,7 +164,7 @@ async function buildPrivateDMContext(db: ReturnType<typeof getDb>, agentId: numb
 
   const lines: string[] = ["== Your Private DM History with the user =="];
   for (const dm of [...dms].reverse()) {
-    const speaker = dm.role === "human" ? "User" : "You";
+    const speaker = dm.role === "human" ? userNickname : "You";
     lines.push(`  ${speaker}: ${dm.content.slice(0, 300)}${dm.content.length > 300 ? "…" : ""}`);
   }
 
@@ -228,8 +228,10 @@ export async function POST(
       mainApiKey: "",
       mainApiModel: "gpt-4o-mini",
       hopCounter: 2,
+      nickname: "User",
     };
     const hopCounter = mainApi.hopCounter ?? 2;
+    const userNickname = mainApi.nickname?.trim() || "User";
     
     // Get stored system prompt (or use default template)
     const storedPublicRules = mainApi.publicImportantRules ?? mainApi.prototypePublicRules ?? null;
@@ -272,7 +274,7 @@ Important rules:
       .orderBy(asc(posts.createdAt));
 
     // Build shared public context once (same for all agents)
-    const publicContext = await buildPublicForumContext(db, threadId);
+    const publicContext = await buildPublicForumContext(db, threadId, userNickname);
 
     const channelLabel = thread.channelName
       ? `${thread.channelEmoji ?? ""} #${thread.channelName}`.trim()
@@ -333,7 +335,7 @@ Important rules:
         .orderBy(asc(posts.createdAt));
 
       // Build this agent's private DM context (unique per agent)
-      const privateDMContext = await buildPrivateDMContext(db, agent.id);
+      const privateDMContext = await buildPrivateDMContext(db, agent.id, userNickname);
 
       // Compose system prompt with layered context
       const contextSections: string[] = [];
@@ -369,11 +371,11 @@ Important rules:
         content: `[${p.authorName}]: ${p.content}`,
       }));
 
-      // Use post-instruction as SYSTEM role instead of hardcoded user message
+      // Use post-instruction as SYSTEM role AFTER conversation history
       const messages = [
         { role: "system", content: systemPrompt },
-        { role: "system", content: publicPostInstruction },
         ...conversationHistory,
+        { role: "system", content: publicPostInstruction },
       ];
 
       // Use agent's own LLM config, or fall back to Main API if no key is set
