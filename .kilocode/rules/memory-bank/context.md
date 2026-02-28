@@ -51,6 +51,7 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 - [x] Fix: Post creation now uses user's nickname instead of "You"
 - [x] Feature: Sequential agent replies with typing indicators via SSE
 - [x] Fix: Proper timing - send 'agent_starting' before 'agent_response' with delays between each agent
+- [x] Fix: Stream each agent's LLM response as it completes (real timing) instead of artificial delays
 - [x] Fix: Post creation now uses user's nickname instead of "You"
 
 ## Current Structure

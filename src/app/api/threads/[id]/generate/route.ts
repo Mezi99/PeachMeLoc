@@ -280,8 +280,6 @@ Important rules:
       ? `${thread.channelEmoji ?? ""} #${thread.channelName}`.trim()
       : "General";
 
-    const newAgentPosts: typeof posts.$inferSelect[] = [];
-
     // Get all active agents
     const allActiveAgents = await db.select().from(agents).where(eq(agents.isActive, true));
     
@@ -303,201 +301,151 @@ Important rules:
       orderedAgentIds = shuffled.map(a => a.id);
     }
 
-    // Track which agents have responded in this generation cycle
-    const agentsRespondedThisRound = new Set<number>();
-    
-    // Queue of agents waiting to respond (in order)
-    let agentQueue = [...orderedAgentIds];
-    
-    // Track additional agents triggered by @mentions in responses
-    const triggeredAgents = new Set<number>();
-    
-    let currentHop = 0;
-    
-    // Process agents SEQUENTIALLY (not simultaneously)
-    while (agentQueue.length > 0 && currentHop < hopCounter) {
-      // Get the next agent from the queue
-      const nextAgentId = agentQueue.shift()!;
-      
-      // Skip if already responded
-      if (agentsRespondedThisRound.has(nextAgentId)) continue;
-      
-      const agent = allActiveAgents.find(a => a.id === nextAgentId);
-      if (!agent) continue;
-      
-      agentsRespondedThisRound.add(agent.id);
-
-      // Get latest posts for context - THIS IS KEY: each agent sees ALL previous responses
-      const latestPosts = await db
-        .select()
-        .from(posts)
-        .where(eq(posts.threadId, threadId))
-        .orderBy(asc(posts.createdAt));
-
-      // Build this agent's private DM context (unique per agent)
-      const privateDMContext = await buildPrivateDMContext(db, agent.id, userNickname);
-
-      // Compose system prompt with layered context
-      const contextSections: string[] = [];
-      if (publicContext) contextSections.push(publicContext);
-      if (privateDMContext) contextSections.push(privateDMContext);
-
-      const contextBlock =
-        contextSections.length > 0
-          ? `\n\n${contextSections.join("\n\n")}\n\n== End of Context ==`
-          : "";
-
-      // Build prompt with stored important rules
-      const effectivePublicRules = storedPublicRules || DEFAULT_PUBLIC_RULES;
-      const publicRules = effectivePublicRules.replace(/{agentName}/g, agent.name);
-      
-      // Build post-instruction (sent as SYSTEM role)
-      const effectivePublicPostInstruction = storedPublicPostInstruction || DEFAULT_PUBLIC_POST_INSTRUCTION;
-      const publicPostInstruction = effectivePublicPostInstruction.replace(/{agentName}/g, agent.name);
-      
-      const promptTemplate = DEFAULT_PROTOTYPE_PROMPT;
-      const systemPrompt = promptTemplate
-        .replace(/{agentName}/g, agent.name)
-        .replace(/{agentPersona}/g, agent.personaPrompt)
-        .replace(/{contextBlock}/g, contextBlock)
-        .replace(/{threadTitle}/g, thread.title)
-        .replace(/{threadCategory}/g, thread.category)
-        .replace(/{channelName}/g, channelLabel)
-        .replace(/{importantRules}/g, publicRules);
-
-      // Build conversation history for this thread - includes ALL previous responses
-      const conversationHistory = latestPosts.map((p) => ({
-        role: p.authorType === "human" ? "user" : "assistant",
-        content: `[${p.authorName}]: ${p.content}`,
-      }));
-
-      // Use post-instruction as SYSTEM role AFTER conversation history
-      const messages = [
-        { role: "system", content: systemPrompt },
-        ...conversationHistory,
-        { role: "system", content: publicPostInstruction },
-      ];
-
-      // Use agent's own LLM config, or fall back to Main API if no key is set
-      const effectiveBaseUrl = agent.llmApiKey.trim() ? agent.llmBaseUrl : mainApi.mainApiBaseUrl;
-      const effectiveApiKey = agent.llmApiKey.trim() ? agent.llmApiKey : mainApi.mainApiKey;
-      const effectiveModel = agent.llmApiKey.trim() ? agent.llmModel : mainApi.mainApiModel;
-
-      try {
-        const content = await callLLM(
-          effectiveBaseUrl,
-          effectiveApiKey,
-          effectiveModel,
-          messages
-        );
-
-        const [agentPost] = await db
-          .insert(posts)
-          .values({
-            threadId,
-            content,
-            authorType: "agent",
-            authorName: agent.name,
-            authorAvatar: agent.avatar,
-            agentId: agent.id,
-            llmPrompt: JSON.stringify(messages),
-          })
-          .returning();
-
-        newAgentPosts.push(agentPost);
-        
-        // Check for @mentions in the response (agent-to-agent triggering)
-        // If user didn't @mention anyone initially, mentions in responses still trigger additional agents
-        if (hopCounter > 0) {
-          const responseMentions = extractMentions(content);
-          // Find agents mentioned by name (excluding self)
-          const mentionedByName = allActiveAgents.filter(a => 
-            responseMentions.includes(a.name) && a.id !== agent.id
-          );
-          for (const mentioned of mentionedByName) {
-            // If user originally @mentioned agents, only those can trigger others
-            // If user didn't @mention anyone, anyone can trigger anyone
-            const originalMentionedSome = mentionedAgentIds.length > 0;
-            
-            if (!originalMentionedSome) {
-              // No initial @mention - add triggered agent to queue if not already responded
-              if (!agentsRespondedThisRound.has(mentioned.id)) {
-                triggeredAgents.add(mentioned.id);
-                // Add to end of queue
-                agentQueue.push(mentioned.id);
-              }
-            } else {
-              // Initial @mention exists - only those agents can trigger chain
-              // Only add if the current agent was originally mentioned
-              if (mentionedAgentIds.includes(agent.id) && !agentsRespondedThisRound.has(mentioned.id)) {
-                triggeredAgents.add(mentioned.id);
-                agentQueue.push(mentioned.id);
-              }
-            }
-          }
-        }
-      } catch (llmError) {
-        console.error(`LLM error for agent ${agent.name}:`, llmError);
-        const [errorPost] = await db
-          .insert(posts)
-          .values({
-            threadId,
-            content: `[Error: Could not generate response. Check API key and model settings for this agent.]`,
-            authorType: "agent",
-            authorName: agent.name,
-            authorAvatar: agent.avatar,
-            agentId: agent.id,
-            llmPrompt: JSON.stringify(messages),
-          })
-          .returning();
-        newAgentPosts.push(errorPost);
-      }
-      
-      currentHop++;
-    }
-
-    // Update thread reply count and last activity
-    const allPosts = await db.select().from(posts).where(eq(posts.threadId, threadId));
-    await db
-      .update(threads)
-      .set({
-        replyCount: allPosts.length - 1,
-        lastActivityAt: new Date(),
-      })
-      .where(eq(threads.id, threadId));
-
-    saveDb();
+    // Track which agents have responded - used in stream below
     
     // Return streaming response using SSE
+    // Each agent's response is streamed AS IT COMPLETES - capturing real LLM response time
     const encoder = new TextEncoder();
+    
+    // We need to re-query agents in order and stream each response as it completes
+    // This is more complex but gives us real timing
     
     const stream = new ReadableStream({
       async start(controller) {
-        // Now send each agent's response as it completes
-        for (const post of newAgentPosts) {
-          // Send "starting" event BEFORE the response so client shows typing indicator while thinking
+        // Process each agent in order, streaming their response as it completes
+        for (const agentId of orderedAgentIds) {
+          const agent = allActiveAgents.find(a => a.id === agentId);
+          if (!agent) continue;
+          
+          // Send "starting" event - client shows typing indicator
           const startData = JSON.stringify({ 
             type: 'agent_starting', 
-            agentName: post.authorName,
-            agentAvatar: post.authorAvatar,
+            agentName: agent.name,
+            agentAvatar: agent.avatar,
           });
           controller.enqueue(encoder.encode(`data: ${startData}\n\n`));
           
-          // Small delay to let the client show the indicator
-          await new Promise(resolve => setTimeout(resolve, 100));
+          // Re-fetch the latest posts for context (each agent sees all previous responses)
+          const latestPosts = await db
+            .select()
+            .from(posts)
+            .where(eq(posts.threadId, threadId))
+            .orderBy(asc(posts.createdAt));
           
-          // Then send the actual response
-          const data = JSON.stringify({ 
-            type: 'agent_response', 
-            agentName: post.authorName,
-            agentAvatar: post.authorAvatar,
-            post: post 
-          });
-          controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+          // Build context for this agent
+          const privateDMContext = await buildPrivateDMContext(db, agent.id, userNickname);
           
-          // Delay between agents so each typing indicator is visible
-          await new Promise(resolve => setTimeout(resolve, 800));
+          const contextSections: string[] = [];
+          if (publicContext) contextSections.push(publicContext);
+          if (privateDMContext) contextSections.push(privateDMContext);
+          
+          const contextBlock =
+            contextSections.length > 0
+              ? `\n\n${contextSections.join("\n\n")}\n\n== End of Context ==`
+              : "";
+          
+          // Build prompt
+          const effectivePublicRules = storedPublicRules || DEFAULT_PUBLIC_RULES;
+          const publicRules = effectivePublicRules.replace(/{agentName}/g, agent.name);
+          
+          const effectivePublicPostInstruction = storedPublicPostInstruction || DEFAULT_PUBLIC_POST_INSTRUCTION;
+          const publicPostInstruction = effectivePublicPostInstruction.replace(/{agentName}/g, agent.name);
+          
+          const promptTemplate = DEFAULT_PROTOTYPE_PROMPT;
+          const systemPrompt = promptTemplate
+            .replace(/{agentName}/g, agent.name)
+            .replace(/{agentPersona}/g, agent.personaPrompt)
+            .replace(/{contextBlock}/g, contextBlock)
+            .replace(/{threadTitle}/g, thread.title)
+            .replace(/{threadCategory}/g, thread.category)
+            .replace(/{channelName}/g, channelLabel)
+            .replace(/{importantRules}/g, publicRules);
+          
+          const conversationHistory = latestPosts.map((p) => ({
+            role: p.authorType === "human" ? "user" : "assistant",
+            content: `[${p.authorName}]: ${p.content}`,
+          }));
+          
+          const messages = [
+            { role: "system", content: systemPrompt },
+            ...conversationHistory,
+            { role: "system", content: publicPostInstruction },
+          ];
+          
+          const effectiveBaseUrl = agent.llmApiKey.trim() ? agent.llmBaseUrl : mainApi.mainApiBaseUrl;
+          const effectiveApiKey = agent.llmApiKey.trim() ? agent.llmApiKey : mainApi.mainApiKey;
+          const effectiveModel = agent.llmApiKey.trim() ? agent.llmModel : mainApi.mainApiModel;
+          
+          let agentPost: typeof posts.$inferSelect | null = null;
+          
+          try {
+            // This LLM call takes REAL time - that's what we want to capture!
+            const content = await callLLM(
+              effectiveBaseUrl,
+              effectiveApiKey,
+              effectiveModel,
+              messages
+            );
+            
+            const [newPost] = await db
+              .insert(posts)
+              .values({
+                threadId,
+                content,
+                authorType: "agent",
+                authorName: agent.name,
+                authorAvatar: agent.avatar,
+                agentId: agent.id,
+                llmPrompt: JSON.stringify(messages),
+              })
+              .returning();
+            
+            agentPost = newPost;
+          } catch (llmError) {
+            console.error(`LLM error for agent ${agent.name}:`, llmError);
+            const [errorPost] = await db
+              .insert(posts)
+              .values({
+                threadId,
+                content: `[Error: Could not generate response. Check API key and model settings for this agent.]`,
+                authorType: "agent",
+                authorName: agent.name,
+                authorAvatar: agent.avatar,
+                agentId: agent.id,
+                llmPrompt: JSON.stringify(messages),
+              })
+              .returning();
+            
+            agentPost = errorPost;
+          }
+          
+          // Send the actual response IMMEDIATELY after LLM returns - no artificial delay!
+          if (agentPost) {
+            const data = JSON.stringify({ 
+              type: 'agent_response', 
+              agentName: agentPost.authorName,
+              agentAvatar: agentPost.authorAvatar,
+              post: agentPost 
+            });
+            controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+          }
+          
+          // Update thread reply count after each agent responds
+          const allPosts = await db.select().from(posts).where(eq(posts.threadId, threadId));
+          await db
+            .update(threads)
+            .set({
+              replyCount: allPosts.length - 1,
+              lastActivityAt: new Date(),
+            })
+            .where(eq(threads.id, threadId));
+          
+          saveDb();
+          
+          // NO artificial delay here - the next agent's LLM call naturally takes time!
+          // Users will see the real response time for each agent
         }
+        
         // Send done message
         controller.enqueue(encoder.encode(`data: {\"type\":\"done\"}\n\n`));
         controller.close();
