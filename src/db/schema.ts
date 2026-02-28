@@ -57,6 +57,9 @@ export const directMessages = sqliteTable("direct_messages", {
 // publicImportantRules: The "Important rules" section for public thread responses
 // dmImportantRules: The "Important rules" section for DM conversations
 // prototypePublicRules / prototypeDmRules: Default prototypes for reset functionality
+// publicPostInstruction: Post-instruction for public threads (sent as SYSTEM role)
+// dmPostInstruction: Post-instruction for DMs (sent as SYSTEM role)
+// prototypePublicPostInstruction / prototypeDmPostInstruction: Default post-instructions
 export const userSettings = sqliteTable("user_settings", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   nickname: text("nickname").notNull().default("You"),
@@ -68,5 +71,9 @@ export const userSettings = sqliteTable("user_settings", {
   dmImportantRules: text("dm_important_rules"), // User's custom DM rules
   prototypePublicRules: text("prototype_public_rules"), // Default public rules
   prototypeDmRules: text("prototype_dm_rules"), // Default DM rules
+  publicPostInstruction: text("public_post_instruction"), // User's custom public post-instruction
+  dmPostInstruction: text("dm_post_instruction"), // User's custom DM post-instruction
+  prototypePublicPostInstruction: text("prototype_public_post_instruction"), // Default public post-instruction
+  prototypeDmPostInstruction: text("prototype_dm_post_instruction"), // Default DM post-instruction
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });

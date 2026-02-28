@@ -23,6 +23,10 @@ const DEFAULT_DM_RULES = `Stay in character as {agentName} at all times
 - Keep responses conversational and natural
 - Do NOT prefix your message with your name or any label`;
 
+// Default post-instructions (sent as SYSTEM role at the end of prompt)
+const DEFAULT_PUBLIC_POST_INSTRUCTION = "Please respond to this forum thread as {agentName}.";
+const DEFAULT_DM_POST_INSTRUCTION = "Please respond to this direct message as {agentName}.";
+
 // Ensure important_rules columns exist (run migration if needed)
 async function ensureImportantRulesColumns() {
   try {
@@ -32,6 +36,10 @@ async function ensureImportantRulesColumns() {
       const hasDmRules = result.some((col) => col.name === "dm_important_rules");
       const hasPrototypePublic = result.some((col) => col.name === "prototype_public_rules");
       const hasPrototypeDm = result.some((col) => col.name === "prototype_dm_rules");
+      const hasPublicPostInstruction = result.some((col) => col.name === "public_post_instruction");
+      const hasDmPostInstruction = result.some((col) => col.name === "dm_post_instruction");
+      const hasPrototypePublicPost = result.some((col) => col.name === "prototype_public_post_instruction");
+      const hasPrototypeDmPost = result.some((col) => col.name === "prototype_dm_post_instruction");
       
       if (!hasPublicRules) {
         console.log("Adding public_important_rules column to user_settings...");
@@ -48,6 +56,22 @@ async function ensureImportantRulesColumns() {
       if (!hasPrototypeDm) {
         console.log("Adding prototype_dm_rules column to user_settings...");
         client.exec("ALTER TABLE user_settings ADD COLUMN prototype_dm_rules TEXT;");
+      }
+      if (!hasPublicPostInstruction) {
+        console.log("Adding public_post_instruction column to user_settings...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN public_post_instruction TEXT;");
+      }
+      if (!hasDmPostInstruction) {
+        console.log("Adding dm_post_instruction column to user_settings...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN dm_post_instruction TEXT;");
+      }
+      if (!hasPrototypePublicPost) {
+        console.log("Adding prototype_public_post_instruction column to user_settings...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN prototype_public_post_instruction TEXT;");
+      }
+      if (!hasPrototypeDmPost) {
+        console.log("Adding prototype_dm_post_instruction column to user_settings...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN prototype_dm_post_instruction TEXT;");
       }
     });
   } catch (e) {
@@ -76,14 +100,20 @@ export async function GET() {
           hopCounter: 2,
           prototypePublicRules: DEFAULT_PUBLIC_RULES,
           prototypeDmRules: DEFAULT_DM_RULES,
+          prototypePublicPostInstruction: DEFAULT_PUBLIC_POST_INSTRUCTION,
+          prototypeDmPostInstruction: DEFAULT_DM_POST_INSTRUCTION,
         })
         .returning();
       saveDb();
       return NextResponse.json({ 
         publicImportantRules: DEFAULT_PUBLIC_RULES, 
         dmImportantRules: DEFAULT_DM_RULES,
+        publicPostInstruction: DEFAULT_PUBLIC_POST_INSTRUCTION,
+        dmPostInstruction: DEFAULT_DM_POST_INSTRUCTION,
         prototypePublicRules: DEFAULT_PUBLIC_RULES,
         prototypeDmRules: DEFAULT_DM_RULES,
+        prototypePublicPostInstruction: DEFAULT_PUBLIC_POST_INSTRUCTION,
+        prototypeDmPostInstruction: DEFAULT_DM_POST_INSTRUCTION,
       });
     }
     
@@ -91,14 +121,22 @@ export async function GET() {
     // Return stored rules or prototypes (or defaults if neither)
     const publicImportantRules = settings.publicImportantRules ?? settings.prototypePublicRules ?? DEFAULT_PUBLIC_RULES;
     const dmImportantRules = settings.dmImportantRules ?? settings.prototypeDmRules ?? DEFAULT_DM_RULES;
+    const publicPostInstruction = (settings as Record<string, unknown>).publicPostInstruction as string | null ?? (settings as Record<string, unknown>).prototypePublicPostInstruction as string | null ?? DEFAULT_PUBLIC_POST_INSTRUCTION;
+    const dmPostInstruction = (settings as Record<string, unknown>).dmPostInstruction as string | null ?? (settings as Record<string, unknown>).prototypeDmPostInstruction as string | null ?? DEFAULT_DM_POST_INSTRUCTION;
     const prototypePublicRules = settings.prototypePublicRules ?? DEFAULT_PUBLIC_RULES;
     const prototypeDmRules = settings.prototypeDmRules ?? DEFAULT_DM_RULES;
+    const prototypePublicPostInstruction = (settings as Record<string, unknown>).prototypePublicPostInstruction as string | null ?? DEFAULT_PUBLIC_POST_INSTRUCTION;
+    const prototypeDmPostInstruction = (settings as Record<string, unknown>).prototypeDmPostInstruction as string | null ?? DEFAULT_DM_POST_INSTRUCTION;
     
     return NextResponse.json({ 
       publicImportantRules, 
       dmImportantRules,
+      publicPostInstruction,
+      dmPostInstruction,
       prototypePublicRules,
       prototypeDmRules,
+      prototypePublicPostInstruction,
+      prototypeDmPostInstruction,
     });
   } catch (error) {
     console.error("GET /api/system-prompt error:", error);
@@ -113,7 +151,16 @@ export async function POST(req: NextRequest) {
     
     const db = getDb();
     const body = await req.json();
-    const { publicImportantRules, dmImportantRules, resetPublicToPrototype, resetDmToPrototype } = body;
+    const { 
+      publicImportantRules, 
+      dmImportantRules, 
+      publicPostInstruction,
+      dmPostInstruction,
+      resetPublicToPrototype, 
+      resetDmToPrototype,
+      resetPublicPostInstructionToPrototype,
+      resetDmPostInstructionToPrototype,
+    } = body;
     
     const existing = await db.select().from(userSettings).where(eq(userSettings.id, 1));
     
@@ -130,8 +177,12 @@ export async function POST(req: NextRequest) {
           hopCounter: 2,
           prototypePublicRules: DEFAULT_PUBLIC_RULES,
           prototypeDmRules: DEFAULT_DM_RULES,
+          prototypePublicPostInstruction: DEFAULT_PUBLIC_POST_INSTRUCTION,
+          prototypeDmPostInstruction: DEFAULT_DM_POST_INSTRUCTION,
           publicImportantRules: resetPublicToPrototype ? null : (publicImportantRules ?? DEFAULT_PUBLIC_RULES),
           dmImportantRules: resetDmToPrototype ? null : (dmImportantRules ?? DEFAULT_DM_RULES),
+          publicPostInstruction: resetPublicPostInstructionToPrototype ? null : (publicPostInstruction ?? DEFAULT_PUBLIC_POST_INSTRUCTION),
+          dmPostInstruction: resetDmPostInstructionToPrototype ? null : (dmPostInstruction ?? DEFAULT_DM_POST_INSTRUCTION),
           updatedAt: new Date(),
         })
         .returning();
@@ -139,8 +190,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ 
         publicImportantRules: resetPublicToPrototype ? DEFAULT_PUBLIC_RULES : (publicImportantRules ?? DEFAULT_PUBLIC_RULES),
         dmImportantRules: resetDmToPrototype ? DEFAULT_DM_RULES : (dmImportantRules ?? DEFAULT_DM_RULES),
+        publicPostInstruction: resetPublicPostInstructionToPrototype ? DEFAULT_PUBLIC_POST_INSTRUCTION : (publicPostInstruction ?? DEFAULT_PUBLIC_POST_INSTRUCTION),
+        dmPostInstruction: resetDmPostInstructionToPrototype ? DEFAULT_DM_POST_INSTRUCTION : (dmPostInstruction ?? DEFAULT_DM_POST_INSTRUCTION),
         prototypePublicRules: DEFAULT_PUBLIC_RULES,
         prototypeDmRules: DEFAULT_DM_RULES,
+        prototypePublicPostInstruction: DEFAULT_PUBLIC_POST_INSTRUCTION,
+        prototypeDmPostInstruction: DEFAULT_DM_POST_INSTRUCTION,
       });
     } else {
       // Update existing settings
@@ -158,6 +213,18 @@ export async function POST(req: NextRequest) {
         updateData.dmImportantRules = dmImportantRules;
       }
       
+      if (resetPublicPostInstructionToPrototype) {
+        updateData.publicPostInstruction = null;
+      } else if (publicPostInstruction !== undefined) {
+        updateData.publicPostInstruction = publicPostInstruction;
+      }
+      
+      if (resetDmPostInstructionToPrototype) {
+        updateData.dmPostInstruction = null;
+      } else if (dmPostInstruction !== undefined) {
+        updateData.dmPostInstruction = dmPostInstruction;
+      }
+      
       const [updated] = await db
         .update(userSettings)
         .set(updateData)
@@ -168,12 +235,18 @@ export async function POST(req: NextRequest) {
       // Return the current effective rules
       const effectivePublicRules = updated.publicImportantRules ?? updated.prototypePublicRules ?? DEFAULT_PUBLIC_RULES;
       const effectiveDmRules = updated.dmImportantRules ?? updated.prototypeDmRules ?? DEFAULT_DM_RULES;
+      const effectivePublicPostInstruction = (updated as Record<string, unknown>).publicPostInstruction as string | null ?? (updated as Record<string, unknown>).prototypePublicPostInstruction as string | null ?? DEFAULT_PUBLIC_POST_INSTRUCTION;
+      const effectiveDmPostInstruction = (updated as Record<string, unknown>).dmPostInstruction as string | null ?? (updated as Record<string, unknown>).prototypeDmPostInstruction as string | null ?? DEFAULT_DM_POST_INSTRUCTION;
       
       return NextResponse.json({ 
         publicImportantRules: effectivePublicRules, 
         dmImportantRules: effectiveDmRules,
+        publicPostInstruction: effectivePublicPostInstruction,
+        dmPostInstruction: effectiveDmPostInstruction,
         prototypePublicRules: updated.prototypePublicRules ?? DEFAULT_PUBLIC_RULES,
         prototypeDmRules: updated.prototypeDmRules ?? DEFAULT_DM_RULES,
+        prototypePublicPostInstruction: (updated as Record<string, unknown>).prototypePublicPostInstruction as string | null ?? DEFAULT_PUBLIC_POST_INSTRUCTION,
+        prototypeDmPostInstruction: (updated as Record<string, unknown>).prototypeDmPostInstruction as string | null ?? DEFAULT_DM_POST_INSTRUCTION,
       });
     }
   } catch (error) {

@@ -10,6 +10,10 @@ async function ensureImportantRulesColumns() {
       const result = client.prepare("PRAGMA table_info(user_settings)").all() as { name: string }[];
       const hasPublicRules = result.some((col) => col.name === "public_important_rules");
       const hasDmRules = result.some((col) => col.name === "dm_important_rules");
+      const hasPublicPostInstruction = result.some((col) => col.name === "public_post_instruction");
+      const hasDmPostInstruction = result.some((col) => col.name === "dm_post_instruction");
+      const hasPrototypePublicPost = result.some((col) => col.name === "prototype_public_post_instruction");
+      const hasPrototypeDmPost = result.some((col) => col.name === "prototype_dm_post_instruction");
       
       if (!hasPublicRules) {
         console.log("Adding public_important_rules column to user_settings...");
@@ -18,6 +22,22 @@ async function ensureImportantRulesColumns() {
       if (!hasDmRules) {
         console.log("Adding dm_important_rules column to user_settings...");
         client.exec("ALTER TABLE user_settings ADD COLUMN dm_important_rules TEXT;");
+      }
+      if (!hasPublicPostInstruction) {
+        console.log("Adding public_post_instruction column to user_settings...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN public_post_instruction TEXT;");
+      }
+      if (!hasDmPostInstruction) {
+        console.log("Adding dm_post_instruction column to user_settings...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN dm_post_instruction TEXT;");
+      }
+      if (!hasPrototypePublicPost) {
+        console.log("Adding prototype_public_post_instruction column to user_settings...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN prototype_public_post_instruction TEXT;");
+      }
+      if (!hasPrototypeDmPost) {
+        console.log("Adding prototype_dm_post_instruction column to user_settings...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN prototype_dm_post_instruction TEXT;");
       }
     });
   } catch (e) {
@@ -143,6 +163,11 @@ export async function POST(
     // Get stored DM important rules
     const storedDmRules = mainApi.dmImportantRules ?? mainApi.prototypeDmRules ?? null;
     
+    // Get stored DM post-instruction (or use default)
+    const storedDmPostInstruction = (mainApi as Record<string, unknown>).dmPostInstruction as string | null 
+      ?? (mainApi as Record<string, unknown>).prototypeDmPostInstruction as string | null 
+      ?? null;
+    
     // Default "Important rules" for DM conversations
     const DEFAULT_DM_RULES = `- Stay in character as {agentName} at all times
 - You have memory of all public forum threads above — you can reference them naturally in conversation
@@ -151,6 +176,9 @@ export async function POST(
 - Do NOT reveal or reference other agents' private DMs (you don't know about them)
 - Keep responses conversational and natural
 - Do NOT prefix your message with your name or any label`;
+    
+    // Default post-instruction for DM
+    const DEFAULT_DM_POST_INSTRUCTION = "Please respond to this direct message as {agentName}.";
     
     // Default prototype prompt template for DMs
     const DEFAULT_DM_PROMPT = `You are {agentName}, a member of the PeachMe forum, having a private direct message conversation with the user.
@@ -195,6 +223,10 @@ Important rules:
     const effectiveDmRules = storedDmRules || DEFAULT_DM_RULES;
     const dmRules = effectiveDmRules.replace(/{agentName}/g, agent.name);
     
+    // Build post-instruction (sent as SYSTEM role)
+    const effectiveDmPostInstruction = storedDmPostInstruction || DEFAULT_DM_POST_INSTRUCTION;
+    const dmPostInstruction = effectiveDmPostInstruction.replace(/{agentName}/g, agent.name);
+    
     const promptTemplate = DEFAULT_DM_PROMPT;
     const systemPrompt = promptTemplate
       .replace(/{agentName}/g, agent.name)
@@ -204,8 +236,10 @@ Important rules:
 
     // Build LLM message list from DM history
     // All messages before the last one are history; the last one is the current user message
+    // Include post-instruction as SYSTEM role
     const llmMessages = [
       { role: "system", content: systemPrompt },
+      { role: "system", content: dmPostInstruction },
       ...history.slice(0, -1).map((m) => ({
         role: m.role === "human" ? "user" : "assistant",
         content: m.content,

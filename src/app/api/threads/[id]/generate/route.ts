@@ -27,6 +27,10 @@ async function ensureSystemPromptColumns() {
       const result = client.prepare("PRAGMA table_info(user_settings)").all() as { name: string }[];
       const hasPublicRules = result.some((col) => col.name === "public_important_rules");
       const hasDmRules = result.some((col) => col.name === "dm_important_rules");
+      const hasPublicPostInstruction = result.some((col) => col.name === "public_post_instruction");
+      const hasDmPostInstruction = result.some((col) => col.name === "dm_post_instruction");
+      const hasPrototypePublicPost = result.some((col) => col.name === "prototype_public_post_instruction");
+      const hasPrototypeDmPost = result.some((col) => col.name === "prototype_dm_post_instruction");
       
       if (!hasPublicRules) {
         console.log("Adding public_important_rules column to user_settings...");
@@ -35,6 +39,22 @@ async function ensureSystemPromptColumns() {
       if (!hasDmRules) {
         console.log("Adding dm_important_rules column to user_settings...");
         client.exec("ALTER TABLE user_settings ADD COLUMN dm_important_rules TEXT;");
+      }
+      if (!hasPublicPostInstruction) {
+        console.log("Adding public_post_instruction column to user_settings...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN public_post_instruction TEXT;");
+      }
+      if (!hasDmPostInstruction) {
+        console.log("Adding dm_post_instruction column to user_settings...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN dm_post_instruction TEXT;");
+      }
+      if (!hasPrototypePublicPost) {
+        console.log("Adding prototype_public_post_instruction column to user_settings...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN prototype_public_post_instruction TEXT;");
+      }
+      if (!hasPrototypeDmPost) {
+        console.log("Adding prototype_dm_post_instruction column to user_settings...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN prototype_dm_post_instruction TEXT;");
       }
     });
   } catch (e) {
@@ -214,6 +234,11 @@ export async function POST(
     // Get stored system prompt (or use default template)
     const storedPublicRules = mainApi.publicImportantRules ?? mainApi.prototypePublicRules ?? null;
     
+    // Get stored public post-instruction (or use default)
+    const storedPublicPostInstruction = (mainApi as Record<string, unknown>).publicPostInstruction as string | null 
+      ?? (mainApi as Record<string, unknown>).prototypePublicPostInstruction as string | null 
+      ?? null;
+    
     // Default "Important rules" for public threads
     const DEFAULT_PUBLIC_RULES = `- Stay in character as {agentName} at all times
 - You have memory of all public forum threads above — you can reference them naturally
@@ -224,6 +249,9 @@ export async function POST(
 - You CAN mention other agents by using @username to get their attention
 - Do NOT prefix your message with your name or any label
 - Do NOT use markdown headers, just plain conversational text`;
+    
+    // Default post-instruction for public threads
+    const DEFAULT_PUBLIC_POST_INSTRUCTION = "Please respond to this forum thread as {agentName}.";
     
     // Default prototype prompt template
     const DEFAULT_PROTOTYPE_PROMPT = `You are {agentName}, a member of the PeachMe forum.
@@ -321,6 +349,10 @@ Important rules:
       const effectivePublicRules = storedPublicRules || DEFAULT_PUBLIC_RULES;
       const publicRules = effectivePublicRules.replace(/{agentName}/g, agent.name);
       
+      // Build post-instruction (sent as SYSTEM role)
+      const effectivePublicPostInstruction = storedPublicPostInstruction || DEFAULT_PUBLIC_POST_INSTRUCTION;
+      const publicPostInstruction = effectivePublicPostInstruction.replace(/{agentName}/g, agent.name);
+      
       const promptTemplate = DEFAULT_PROTOTYPE_PROMPT;
       const systemPrompt = promptTemplate
         .replace(/{agentName}/g, agent.name)
@@ -337,13 +369,11 @@ Important rules:
         content: `[${p.authorName}]: ${p.content}`,
       }));
 
+      // Use post-instruction as SYSTEM role instead of hardcoded user message
       const messages = [
         { role: "system", content: systemPrompt },
+        { role: "system", content: publicPostInstruction },
         ...conversationHistory,
-        {
-          role: "user",
-          content: `Please respond to this forum thread as ${agent.name}.`,
-        },
       ];
 
       // Use agent's own LLM config, or fall back to Main API if no key is set
