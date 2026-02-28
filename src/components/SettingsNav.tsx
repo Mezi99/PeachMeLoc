@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const tabs = [
   { href: "/settings/me", label: "👤 My Settings" },
-  { href: "/settings/prompt", label: "📋 Important Rules" },
+  { href: "/settings/prompt", label: "📋 System Prompts" },
   { href: "/settings/agents", label: "🤖 Manage Agents" },
   { href: "/settings/forums", label: "💾 Saved Forums" },
 ];
