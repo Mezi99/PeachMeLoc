@@ -318,3 +318,65 @@ Important rules:
     return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
   }
 }
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ agentId: string }> }
+) {
+  try {
+    await syncForumFromCookie();
+    const db = getDb();
+    const { agentId } = await params;
+    const body = await req.json();
+    const { messageId, content } = body;
+
+    if (!messageId || !content) {
+      return NextResponse.json({ error: "messageId and content are required" }, { status: 400 });
+    }
+
+    // Update the message
+    const [updated] = await db
+      .update(directMessages)
+      .set({ content })
+      .where(eq(directMessages.id, messageId))
+      .returning();
+
+    if (!updated) {
+      return NextResponse.json({ error: "Message not found" }, { status: 404 });
+    }
+
+    saveDb();
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("PUT /api/dms/[agentId] error:", error);
+    return NextResponse.json({ error: "Failed to update message" }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ agentId: string }> }
+) {
+  try {
+    await syncForumFromCookie();
+    const db = getDb();
+    const { agentId } = await params;
+    const body = await req.json();
+    const { messageId } = body;
+
+    if (!messageId) {
+      return NextResponse.json({ error: "messageId is required" }, { status: 400 });
+    }
+
+    // Delete the message
+    await db
+      .delete(directMessages)
+      .where(eq(directMessages.id, messageId));
+
+    saveDb();
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("DELETE /api/dms/[agentId] error:", error);
+    return NextResponse.json({ error: "Failed to delete message" }, { status: 500 });
+  }
+}
