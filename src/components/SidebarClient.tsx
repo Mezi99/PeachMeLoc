@@ -75,7 +75,7 @@ export default function SidebarClient({ activeForum, channels: initialChannels, 
   };
 
   return (
-    <aside className="w-60 shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col overflow-y-auto">
+    <aside className="w-60 shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col h-full">
       {/* Logo/Brand with active forum name */}
       <div className="px-3 pt-4 pb-2">
         <div className="flex items-center gap-2 px-3 py-2">

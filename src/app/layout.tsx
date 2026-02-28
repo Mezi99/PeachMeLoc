@@ -64,7 +64,7 @@ export default async function RootLayout({
           </div>
         </header>
 
-        <div className="flex min-h-[calc(100vh-56px)]">
+        <div className="flex h-[calc(100vh-56px)]">
           {/* Sidebar */}
           <SidebarClient
             activeForum={activeForumName}
@@ -81,7 +81,7 @@ export default async function RootLayout({
           />
 
           {/* Main content */}
-          <main className="flex-1 min-w-0 px-6 py-6">
+          <main className="flex-1 min-w-0 px-6 py-6 overflow-y-auto">
             {children}
           </main>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 
 interface Post {
   id: number;
@@ -67,9 +68,10 @@ function PromptButton({ prompt }: { prompt: string }) {
     <>
       <button
         onClick={() => setShow(true)}
-        className="mt-1 text-xs text-gray-600 hover:text-gray-400 underline"
+        className="p-1.5 text-gray-500 hover:text-gray-300 rounded-md hover:bg-gray-800 transition-colors"
+        title="View Prompt"
       >
-        📋 View Prompt
+        📋
       </button>
       {show && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShow(false)}>
@@ -193,9 +195,12 @@ export default function ThreadView({ threadId, initialPosts }: ThreadViewProps) 
               {/* Bubble */}
               <div className={`flex-1 max-w-2xl ${isHuman ? "items-end" : "items-start"} flex flex-col`}>
                 <div className={`flex items-center gap-2 mb-1 ${isHuman ? "flex-row-reverse" : ""}`}>
-                  <span className={`text-sm font-semibold ${isHuman ? "text-indigo-300" : "text-gray-300"}`}>
+                  <Link
+                    href={`/dm/${post.agentId}`}
+                    className={`text-sm font-semibold ${isHuman ? "text-indigo-300" : "text-indigo-400 hover:text-indigo-300"} cursor-pointer`}
+                  >
                     {post.authorName}
-                  </span>
+                  </Link>
                   {isOP && (
                     <span className="text-xs bg-indigo-900 text-indigo-300 px-1.5 py-0.5 rounded font-medium">
                       OP
@@ -217,17 +222,20 @@ export default function ThreadView({ threadId, initialPosts }: ThreadViewProps) 
                 >
                   {isAgent ? renderContentWithMentions(post.content, true) : post.content}
                 </div>
-                {!isHuman && post.llmPrompt && (
-                  <PromptButton prompt={post.llmPrompt} />
-                )}
-                {/* Reply button for agent posts */}
+                {/* Action buttons for agent posts */}
                 {!isHuman && (
-                  <button
-                    onClick={() => handleAgentReply(post.authorName)}
-                    className="mt-1 text-xs text-indigo-400 hover:text-indigo-300"
-                  >
-                    ↩️ Reply
-                  </button>
+                  <div className={`flex gap-1 mt-1 ${isHuman ? "flex-row-reverse" : ""}`}>
+                    {post.llmPrompt && (
+                      <PromptButton prompt={post.llmPrompt} />
+                    )}
+                    <button
+                      onClick={() => handleAgentReply(post.authorName)}
+                      className="p-1.5 text-gray-500 hover:text-gray-300 rounded-md hover:bg-gray-800 transition-colors"
+                      title="Reply"
+                    >
+                      ↩️
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
