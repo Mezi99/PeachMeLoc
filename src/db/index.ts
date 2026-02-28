@@ -134,7 +134,48 @@ function runFallbackMigrations(client: Database.Database) {
     const hasContextLimit = agentsTableInfo.some((col) => col.name === "context_limit");
     if (!hasContextLimit) {
       console.log("Adding context_limit column to agents (fallback migration)...");
-      client.exec("ALTER TABLE agents ADD COLUMN context_limit INTEGER NOT NULL DEFAULT 30;");
+      client.exec("ALTER TABLE agents ADD COLUMN context_limit INTEGER DEFAULT 30;");
+    }
+
+    // Check if user_settings table has summarization columns
+    const userSettingsTableInfo = client.prepare("PRAGMA table_info(user_settings)").all() as { name: string }[];
+    const hasSummarizationEnabled = userSettingsTableInfo.some((col) => col.name === "summarization_enabled");
+    const hasSummarizationModel = userSettingsTableInfo.some((col) => col.name === "summarization_model");
+    const hasSummarizationInterval = userSettingsTableInfo.some((col) => col.name === "summarization_interval");
+    const hasSummarizationMessages = userSettingsTableInfo.some((col) => col.name === "summarization_messages_to_summarize");
+
+    if (!hasSummarizationEnabled) {
+      console.log("Adding summarization_enabled column (fallback migration)...");
+      client.exec("ALTER TABLE user_settings ADD COLUMN summarization_enabled INTEGER DEFAULT 0;");
+    }
+    if (!hasSummarizationModel) {
+      console.log("Adding summarization_model column (fallback migration)...");
+      client.exec("ALTER TABLE user_settings ADD COLUMN summarization_model TEXT DEFAULT 'gpt-4o-mini';");
+    }
+    if (!hasSummarizationInterval) {
+      console.log("Adding summarization_interval column (fallback migration)...");
+      client.exec("ALTER TABLE user_settings ADD COLUMN summarization_interval INTEGER DEFAULT 50;");
+    }
+    if (!hasSummarizationMessages) {
+      console.log("Adding summarization_messages_to_summarize column (fallback migration)...");
+      client.exec("ALTER TABLE user_settings ADD COLUMN summarization_messages_to_summarize INTEGER DEFAULT 30;");
+    }
+
+    // Check if thread_summaries table exists
+    const threadSummariesTableInfo = client.prepare("PRAGMA table_info(thread_summaries)").all() as { name: string }[];
+    if (threadSummariesTableInfo.length === 0) {
+      console.log("Creating thread_summaries table (fallback migration)...");
+      client.exec(`
+        CREATE TABLE thread_summaries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          thread_id INTEGER NOT NULL REFERENCES threads(id),
+          agent_id INTEGER NOT NULL REFERENCES agents(id),
+          summary_content TEXT NOT NULL,
+          summarized_up_to_post_id INTEGER NOT NULL,
+          created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )
+      `);
+      client.exec("CREATE INDEX IF NOT EXISTS idx_thread_summaries_thread_agent ON thread_summaries(thread_id, agent_id)");
     }
   } catch (e) {
     console.error("Fallback migration error:", e);
