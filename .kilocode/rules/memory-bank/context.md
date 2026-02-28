@@ -49,6 +49,8 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 - [x] Fix: Use user nickname in chat history instead of hardcoded "You"
 - [x] Fix: Move post-instruction prompts to end of prompt (after user's last message)
 - [x] Fix: Post creation now uses user's nickname instead of "You"
+- [x] Feature: Sequential agent replies with typing indicators via SSE
+- [x] Fix: Post creation now uses user's nickname instead of "You"
 
 ## Current Structure
 
