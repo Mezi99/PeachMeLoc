@@ -109,6 +109,11 @@ export default function ThreadView({ threadId, initialPosts, activeAgents = [] }
   const [currentAgent, setCurrentAgent] = useState<{ name: string; avatar: string } | null>(null);
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  
+  // Edit state
+  const [editingPostId, setEditingPostId] = useState<number | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -212,6 +217,60 @@ export default function ThreadView({ threadId, initialPosts, activeAgents = [] }
     }
   };
 
+  // Start editing a post
+  const handleEditStart = (post: Post) => {
+    setEditingPostId(post.id);
+    setEditContent(post.content);
+  };
+
+  // Cancel editing
+  const handleEditCancel = () => {
+    setEditingPostId(null);
+    setEditContent("");
+  };
+
+  // Save edited post
+  const handleEditSave = async (postId: number) => {
+    if (!editContent.trim()) return;
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/threads/${threadId}/posts`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId, content: editContent.trim() }),
+      });
+      if (!res.ok) throw new Error("Failed to update post");
+      const updatedPost = await res.json();
+      setPostsList((prev) =>
+        prev.map((p) => (p.id === postId ? { ...p, content: updatedPost.content } : p))
+      );
+      setEditingPostId(null);
+      setEditContent("");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update post");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  // Delete a post
+  const handleDelete = async (postId: number) => {
+    if (!confirm("Delete this post? This cannot be undone.")) return;
+    try {
+      const res = await fetch(`/api/threads/${threadId}/posts`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId }),
+      });
+      if (!res.ok) throw new Error("Failed to delete post");
+      setPostsList((prev) => prev.filter((p) => p.id !== postId));
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete post");
+    }
+  };
+
   return (
     <div>
       {/* Posts */}
@@ -266,14 +325,41 @@ export default function ThreadView({ threadId, initialPosts, activeAgents = [] }
                       : "bg-gray-800 text-gray-200 rounded-tl-sm border border-gray-700"
                   }`}
                 >
-                  {isAgent ? renderContentWithMentions(post.content, true) : post.content}
+                  {editingPostId === post.id ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        rows={3}
+                        className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm resize-none"
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEditSave(post.id)}
+                          disabled={savingEdit || !editContent.trim()}
+                          className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded transition-colors disabled:opacity-40"
+                        >
+                          {savingEdit ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          onClick={handleEditCancel}
+                          className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    isAgent ? renderContentWithMentions(post.content, true) : post.content
+                  )}
                 </div>
-                {/* Action buttons for agent posts */}
-                {!isHuman && (
-                  <div className={`flex gap-1 mt-1 ${isHuman ? "flex-row-reverse" : ""}`}>
-                    {post.llmPrompt && (
-                      <PromptButton prompt={post.llmPrompt} />
-                    )}
+                {/* Action buttons for all posts */}
+                <div className={`flex gap-1 mt-1 ${isHuman ? "flex-row-reverse" : ""}`}>
+                  {post.llmPrompt && (
+                    <PromptButton prompt={post.llmPrompt} />
+                  )}
+                  {!isHuman && (
                     <button
                       onClick={() => handleAgentReply(post.authorName)}
                       className="p-1.5 text-gray-500 hover:text-gray-300 rounded-md hover:bg-gray-800 transition-colors"
@@ -281,8 +367,26 @@ export default function ThreadView({ threadId, initialPosts, activeAgents = [] }
                     >
                       ↩️
                     </button>
-                  </div>
-                )}
+                  )}
+                  {/* Edit button - for all posts */}
+                  {editingPostId !== post.id && (
+                    <button
+                      onClick={() => handleEditStart(post)}
+                      className="p-1.5 text-gray-500 hover:text-gray-300 rounded-md hover:bg-gray-800 transition-colors"
+                      title="Edit"
+                    >
+                      ✏️
+                    </button>
+                  )}
+                  {/* Delete button - for all posts */}
+                  <button
+                    onClick={() => handleDelete(post.id)}
+                    className="p-1.5 text-gray-500 hover:text-red-400 rounded-md hover:bg-gray-800 transition-colors"
+                    title="Delete"
+                  >
+                    🗑️
+                  </button>
+                </div>
               </div>
             </div>
           );

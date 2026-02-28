@@ -102,3 +102,80 @@ export async function POST(
     return NextResponse.json({ error: "Failed to create post" }, { status: 500 });
   }
 }
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await syncForumFromCookie();
+    const db = getDb();
+    const { id } = await params;
+    const body = await req.json();
+    const { postId, content } = body;
+
+    if (!postId || !content) {
+      return NextResponse.json({ error: "postId and content are required" }, { status: 400 });
+    }
+
+    // Update the post
+    const [updatedPost] = await db
+      .update(posts)
+      .set({ content })
+      .where(eq(posts.id, postId))
+      .returning();
+
+    if (!updatedPost) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
+    }
+
+    saveDb();
+    return NextResponse.json(updatedPost);
+  } catch (error) {
+    console.error("PUT /api/threads/[id]/posts error:", error);
+    return NextResponse.json({ error: "Failed to update post" }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await syncForumFromCookie();
+    const db = getDb();
+    const { id } = await params;
+    const body = await req.json();
+    const { postId } = body;
+
+    if (!postId) {
+      return NextResponse.json({ error: "postId is required" }, { status: 400 });
+    }
+
+    // Get the post first to check if it exists
+    const [post] = await db.select().from(posts).where(eq(posts.id, postId));
+    if (!post) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
+    }
+
+    // Delete the post
+    await db.delete(posts).where(eq(posts.id, postId));
+
+    // Update thread reply count
+    const threadId = parseInt(id);
+    const postsCount = await db.select().from(posts).where(eq(posts.threadId, threadId));
+    await db
+      .update(threads)
+      .set({
+        replyCount: Math.max(0, postsCount.length - 1),
+        lastActivityAt: new Date(),
+      })
+      .where(eq(threads.id, threadId));
+
+    saveDb();
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("DELETE /api/threads/[id]/posts error:", error);
+    return NextResponse.json({ error: "Failed to delete post" }, { status: 500 });
+  }
+}
