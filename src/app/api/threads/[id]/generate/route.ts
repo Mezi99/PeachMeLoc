@@ -300,8 +300,8 @@ Important rules:
 
     // === ROUTING LOGIC (like the Python example) ===
     
-    // Track which agents have responded (to prevent loops)
-    const respondedAgentIds = new Set<number>();
+    // Track which agents have responded in the CURRENT hop (to prevent duplicate in same hop)
+    const respondedInCurrentHop = new Set<number>();
     
     // Queue of agents to respond (initially from human's @mentions)
     let pendingAgentIds: number[] = [...initialMentions];
@@ -326,22 +326,23 @@ Important rules:
           // Get the next batch of agents to respond
           const currentBatch = [...pendingAgentIds];
           pendingAgentIds = []; // Clear for next round
+          respondedInCurrentHop.clear(); // Clear for new hop
           
           // Shuffle for randomness within each hop
           currentBatch.sort(() => Math.random() - 0.5);
           
           // Process each agent in the current batch
           for (const agentId of currentBatch) {
-            // Skip if already responded
-            if (respondedAgentIds.has(agentId)) {
+            // Skip if already responded in THIS hop (prevent duplicate)
+            if (respondedInCurrentHop.has(agentId)) {
               continue;
             }
             
             const agent = allActiveAgents.find(a => a.id === agentId);
             if (!agent) continue;
             
-            // Mark as responded
-            respondedAgentIds.add(agentId);
+            // Mark as responded in this hop
+            respondedInCurrentHop.add(agentId);
             
             // Send starting event
             const startData = JSON.stringify({ 
@@ -483,8 +484,8 @@ Important rules:
                   a => a.name.toLowerCase() === name
                 );
                 
-                if (mentionedAgent && !respondedAgentIds.has(mentionedAgent.id)) {
-                  // Add to next hop queue if not already responded
+                if (mentionedAgent) {
+                  // Add to next hop queue (always add if mentioned, regardless of recent response)
                   if (!pendingAgentIds.includes(mentionedAgent.id)) {
                     pendingAgentIds.push(mentionedAgent.id);
                   }
