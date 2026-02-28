@@ -473,23 +473,20 @@ Important rules:
     
     const stream = new ReadableStream({
       async start(controller) {
-        // Send "starting" event BEFORE each agent starts generating (so indicator shows while thinking)
-        for (const agentId of orderedAgentIds) {
-          const agent = allActiveAgents.find(a => a.id === agentId);
-          if (!agent || agentsRespondedThisRound.has(agent.id)) continue;
-          
-          // Check if this agent will actually respond (skip if already responded)
-          // Send "starting" event so client shows typing indicator
-          const startData = JSON.stringify({ 
-            type: 'agent_starting', 
-            agentName: agent.name,
-            agentAvatar: agent.avatar,
-          });
-          controller.enqueue(encoder.encode(`data: ${startData}\n\n`));
-        }
-        
         // Now send each agent's response as it completes
         for (const post of newAgentPosts) {
+          // Send "starting" event BEFORE the response so client shows typing indicator while thinking
+          const startData = JSON.stringify({ 
+            type: 'agent_starting', 
+            agentName: post.authorName,
+            agentAvatar: post.authorAvatar,
+          });
+          controller.enqueue(encoder.encode(`data: ${startData}\n\n`));
+          
+          // Small delay to let the client show the indicator
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          // Then send the actual response
           const data = JSON.stringify({ 
             type: 'agent_response', 
             agentName: post.authorName,
@@ -497,6 +494,9 @@ Important rules:
             post: post 
           });
           controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+          
+          // Delay between agents so each typing indicator is visible
+          await new Promise(resolve => setTimeout(resolve, 800));
         }
         // Send done message
         controller.enqueue(encoder.encode(`data: {\"type\":\"done\"}\n\n`));
