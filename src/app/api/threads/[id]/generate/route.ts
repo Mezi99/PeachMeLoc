@@ -280,7 +280,7 @@ Important rules:
       ? `${thread.channelEmoji ?? ""} #${thread.channelName}`.trim()
       : "General";
 
-    const newAgentPosts = [];
+    const newAgentPosts: typeof posts.$inferSelect[] = [];
 
     // Get all active agents
     const allActiveAgents = await db.select().from(agents).where(eq(agents.isActive, true));
@@ -467,7 +467,35 @@ Important rules:
       .where(eq(threads.id, threadId));
 
     saveDb();
-    return NextResponse.json({ posts: newAgentPosts });
+    
+    // Return streaming response using SSE
+    const encoder = new TextEncoder();
+    
+    const stream = new ReadableStream({
+      async start(controller) {
+        // Send each agent's response as it completes
+        for (const post of newAgentPosts) {
+          const data = JSON.stringify({ 
+            type: 'agent_response', 
+            agentName: post.authorName,
+            agentAvatar: post.authorAvatar,
+            post: post 
+          });
+          controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+        }
+        // Send done message
+        controller.enqueue(encoder.encode(`data: {\"type\":\"done\"}\n\n`));
+        controller.close();
+      }
+    });
+    
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
   } catch (error) {
     console.error("POST /api/threads/[id]/generate error:", error);
     return NextResponse.json({ error: "Failed to generate responses" }, { status: 500 });

@@ -18,6 +18,7 @@ interface Post {
 interface ThreadViewProps {
   threadId: number;
   initialPosts: Post[];
+  activeAgents?: { id: number; name: string; avatar: string }[];
 }
 
 function formatTime(iso: string | null) {
@@ -100,11 +101,12 @@ function PromptButton({ prompt }: { prompt: string }) {
   );
 }
 
-export default function ThreadView({ threadId, initialPosts }: ThreadViewProps) {
+export default function ThreadView({ threadId, initialPosts, activeAgents = [] }: ThreadViewProps) {
   const [postsList, setPostsList] = useState<Post[]>(initialPosts);
   const [replyContent, setReplyContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [currentAgent, setCurrentAgent] = useState<{ name: string; avatar: string } | null>(null);
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -136,17 +138,64 @@ export default function ThreadView({ threadId, initialPosts }: ThreadViewProps) 
 
       // Trigger AI agent responses (mentioned agents respond first)
       setGenerating(true);
+      
       const genRes = await fetch(`/api/threads/${threadId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mentionedAgentIds }),
       });
+      
       if (!genRes.ok) throw new Error("Failed to generate AI responses");
-      const { posts: agentPosts } = await genRes.json();
-      setPostsList((prev) => [
-        ...prev,
-        ...agentPosts.map((p: Post) => ({ ...p, createdAt: p.createdAt ?? new Date().toISOString() })),
-      ]);
+      
+      // Read the response as a stream
+      const reader = genRes.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (!reader) {
+        throw new Error("Failed to read response stream");
+      }
+      
+      let buffer = "";
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        
+        // Process complete SSE messages
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.type === "agent_response") {
+                // Agent is starting to respond - show typing indicator
+                setCurrentAgent({ name: data.agentName, avatar: data.agentAvatar });
+                
+                // Add the post to the list
+                const newPost = data.post;
+                setPostsList((prev) => [...prev, { ...newPost, createdAt: newPost.createdAt ?? new Date().toISOString() }]);
+                
+                // Clear typing indicator after a short delay to show the message
+                setTimeout(() => {
+                  setCurrentAgent(null);
+                }, 500);
+              } else if (data.type === "done") {
+                // All agents have responded
+                setGenerating(false);
+              }
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          }
+        }
+      }
+      
+      setGenerating(false);
     } catch (err) {
       setError("Something went wrong. Please try again.");
       console.error(err);
@@ -242,8 +291,29 @@ export default function ThreadView({ threadId, initialPosts }: ThreadViewProps) 
           );
         })}
 
-        {/* Generating indicator */}
-        {generating && (
+        {/* Generating indicator - shows current agent typing */}
+        {generating && currentAgent && (
+          <div className="flex gap-4">
+            <div className="w-10 h-10 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-xl">
+              {currentAgent.avatar}
+            </div>
+            <div className="flex-1 max-w-2xl">
+              <div className="bg-gray-800 border border-gray-700 rounded-2xl rounded-tl-sm px-4 py-3">
+                <div className="flex gap-1 items-center">
+                  <span className="text-gray-400 text-sm">{currentAgent.name} is thinking</span>
+                  <span className="flex gap-1 ml-1">
+                    <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Fallback indicator when we don't know which agent is responding */}
+        {generating && !currentAgent && (
           <div className="flex gap-4">
             <div className="w-10 h-10 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-xl">
               🤖
