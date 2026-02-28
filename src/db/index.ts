@@ -118,9 +118,27 @@ export function getDb() {
   sqliteClient.pragma('journal_mode = WAL');
   sqliteClient.pragma('busy_timeout = 5000');
   
+  // Run fallback migrations for existing databases
+  runFallbackMigrations(sqliteClient);
+  
   dbInstance = drizzle(sqliteClient, { schema });
 
   return dbInstance;
+}
+
+// Run fallback migrations for existing databases (using ALTER TABLE)
+function runFallbackMigrations(client: Database.Database) {
+  try {
+    // Check if agents table has context_limit column
+    const agentsTableInfo = client.prepare("PRAGMA table_info(agents)").all() as { name: string }[];
+    const hasContextLimit = agentsTableInfo.some((col) => col.name === "context_limit");
+    if (!hasContextLimit) {
+      console.log("Adding context_limit column to agents (fallback migration)...");
+      client.exec("ALTER TABLE agents ADD COLUMN context_limit INTEGER NOT NULL DEFAULT 30;");
+    }
+  } catch (e) {
+    console.error("Fallback migration error:", e);
+  }
 }
 
 // Get database client directly (for raw queries)
