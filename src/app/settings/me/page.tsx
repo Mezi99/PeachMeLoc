@@ -34,6 +34,10 @@ export default async function MySettingsPage() {
           mainApiKey: settings.mainApiKey,
           mainApiModel: settings.mainApiModel,
           hopCounter: settings.hopCounter ?? 2,
+          summarizationEnabled: settings.summarizationEnabled ?? false,
+          summarizationModel: settings.summarizationModel ?? "gpt-4o-mini",
+          summarizationInterval: settings.summarizationInterval ?? 50,
+          summarizationMessagesToSummarize: settings.summarizationMessagesToSummarize ?? 30,
         }}
       />
     </div>

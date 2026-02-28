@@ -61,6 +61,10 @@ export const directMessages = sqliteTable("direct_messages", {
 // publicPostInstruction: Post-instruction for public threads (sent as SYSTEM role)
 // dmPostInstruction: Post-instruction for DMs (sent as SYSTEM role)
 // prototypePublicPostInstruction / prototypeDmPostInstruction: Default post-instructions
+// summarizationEnabled: Whether to enable automatic summarization
+// summarizationModel: Model to use for summarization
+// summarizationInterval: Number of messages after which to trigger summarization
+// summarizationMessagesToSummarize: How many old messages to compress into each summary
 export const userSettings = sqliteTable("user_settings", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   nickname: text("nickname").notNull().default("You"),
@@ -76,5 +80,20 @@ export const userSettings = sqliteTable("user_settings", {
   dmPostInstruction: text("dm_post_instruction"), // User's custom DM post-instruction
   prototypePublicPostInstruction: text("prototype_public_post_instruction"), // Default public post-instruction
   prototypeDmPostInstruction: text("prototype_dm_post_instruction"), // Default DM post-instruction
+  // Summarization settings
+  summarizationEnabled: integer("summarization_enabled", { mode: "boolean" }).notNull().default(false),
+  summarizationModel: text("summarization_model").notNull().default("gpt-4o-mini"),
+  summarizationInterval: integer("summarization_interval").notNull().default(50), // Trigger after N messages
+  summarizationMessagesToSummarize: integer("summarization_messages_to_summarize").notNull().default(30), // Compress N messages into summary
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+// Thread summaries - stored per-agent per-thread for context compression
+export const threadSummaries = sqliteTable("thread_summaries", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  threadId: integer("thread_id").notNull().references(() => threads.id),
+  agentId: integer("agent_id").notNull().references(() => agents.id),
+  summaryContent: text("summary_content").notNull(), // The compressed summary
+  summarizedUpToPostId: integer("summarized_up_to_post_id").notNull(), // The last post ID that was summarized
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });

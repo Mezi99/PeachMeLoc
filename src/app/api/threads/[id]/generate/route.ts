@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, saveDb, syncForumFromCookie, withDbClient } from "@/db";
-import { posts, threads, agents, directMessages, channels, userSettings } from "@/db/schema";
+import { posts, threads, agents, directMessages, channels, userSettings, threadSummaries } from "@/db/schema";
 import { eq, asc, desc, ne } from "drizzle-orm";
 
 // Ensure hop_counter column exists (run migration if needed)
@@ -175,6 +175,148 @@ async function buildPrivateDMContext(db: ReturnType<typeof getDb>, agentId: numb
   }
 
   return lines.join("\n");
+}
+
+/**
+ * Get existing thread summaries for an agent.
+ */
+async function getThreadSummaries(db: ReturnType<typeof getDb>, threadId: number, agentId: number): Promise<string> {
+  const summaries = await db
+    .select()
+    .from(threadSummaries)
+    .where(eq(threadSummaries.threadId, threadId))
+    .orderBy(asc(threadSummaries.createdAt));
+
+  if (summaries.length === 0) {
+    return "";
+  }
+
+  const lines: string[] = ["== Earlier Discussion Summary =="];
+  for (const s of summaries) {
+    lines.push(s.summaryContent);
+  }
+
+  return lines.join("\n\n");
+}
+
+/**
+ * Check if summarization is needed and trigger it if so.
+ * Returns true if summarization was triggered.
+ */
+async function maybeTriggerSummarization(
+  db: ReturnType<typeof getDb>,
+  threadId: number,
+  agentId: number,
+  settings: {
+    summarizationEnabled?: boolean;
+    summarizationModel?: string;
+    summarizationInterval?: number;
+    summarizationMessagesToSummarize?: number;
+    mainApiBaseUrl?: string;
+    mainApiKey?: string;
+  }
+): Promise<boolean> {
+  // Check if summarization is enabled
+  if (!settings.summarizationEnabled) {
+    return false;
+  }
+
+  const interval = settings.summarizationInterval || 50;
+  const messagesToSummarize = settings.summarizationMessagesToSummarize || 30;
+
+  // Get the latest summary for this thread+agent (if any)
+  const latestSummary = await db
+    .select()
+    .from(threadSummaries)
+    .where(eq(threadSummaries.threadId, threadId))
+    .orderBy(desc(threadSummaries.summarizedUpToPostId))
+    .limit(1);
+
+  // Determine which posts have not yet been summarized
+  let startPostId = 0;
+  if (latestSummary.length > 0) {
+    startPostId = latestSummary[0].summarizedUpToPostId;
+  }
+
+  // Count posts since last summary point
+  const unsummarizedPosts = await db
+    .select({ count: posts.id })
+    .from(posts)
+    .where(eq(posts.threadId, threadId));
+
+  const totalPosts = unsummarizedPosts[0]?.count || 0;
+  const unsummarizedCount = totalPosts - startPostId;
+
+  // Check if we've reached the interval
+  if (unsummarizedCount < interval) {
+    return false;
+  }
+
+  // Get posts to summarize (the older ones that haven't been summarized yet)
+  const postsToSummarize = await db
+    .select()
+    .from(posts)
+    .where(eq(posts.threadId, threadId))
+    .orderBy(asc(posts.id))
+    .limit(messagesToSummarize);
+
+  if (postsToSummarize.length === 0) {
+    return false;
+  }
+
+  // Get the last post ID we're summarizing
+  const lastPostId = postsToSummarize[postsToSummarize.length - 1].id;
+
+  // Build a summary using the LLM
+  const summarizationModel = settings.summarizationModel || "gpt-4o-mini";
+  const summarizationPrompt = `Please summarize this conversation concisely, preserving key points, opinions, and any important information:\n\n` +
+    postsToSummarize.map(p => `${p.authorName}: ${p.content}`).join("\n");
+
+  try {
+    // Call the LLM to generate summary
+    const summaryResponse = await fetch(`${settings.mainApiBaseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${settings.mainApiKey}`,
+      },
+      body: JSON.stringify({
+        model: summarizationModel,
+        messages: [
+          { role: "system", content: "You are a helpful assistant that summarizes conversations concisely." },
+          { role: "user", content: summarizationPrompt },
+        ],
+        max_tokens: 500,
+      }),
+    });
+
+    if (!summaryResponse.ok) {
+      console.error("Summarization LLM call failed:", summaryResponse.status);
+      return false;
+    }
+
+    const summaryData = await summaryResponse.json();
+    const summaryContent = summaryData.choices?.[0]?.message?.content || "";
+
+    if (!summaryContent) {
+      return false;
+    }
+
+    // Save the summary
+    await db.insert(threadSummaries).values({
+      threadId,
+      agentId,
+      summaryContent,
+      summarizedUpToPostId: lastPostId,
+    });
+
+    saveDb();
+    console.log(`[Summarization] Created summary for thread ${threadId}, agent ${agentId}, up to post ${lastPostId}`);
+    return true;
+  } catch (err) {
+    console.error("Summarization error:", err);
+    return false;
+  }
 }
 
 /**
@@ -363,8 +505,10 @@ Important rules:
             const agentContextLimit = agent.contextLimit || 30;
             const publicForumContext = await buildPublicForumContext(db, threadId, agentContextLimit);
             const privateDMContext = await buildPrivateDMContext(db, agent.id);
+            const threadSummaryContext = await getThreadSummaries(db, threadId, agent.id);
             
             const contextSections: string[] = [];
+            if (threadSummaryContext) contextSections.push(threadSummaryContext);
             if (publicForumContext) contextSections.push(publicForumContext);
             if (privateDMContext) contextSections.push(privateDMContext);
             
@@ -457,6 +601,9 @@ Important rules:
                 post: agentPost 
               });
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+              
+              // Maybe trigger summarization after agent response
+              await maybeTriggerSummarization(db, threadId, agent.id, mainApi);
             }
             
             // Update thread reply count

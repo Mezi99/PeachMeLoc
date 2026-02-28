@@ -20,6 +20,38 @@ async function ensureHopCounterColumn() {
   }
 }
 
+// Ensure summarization columns exist (run migration if needed)
+async function ensureSummarizationColumns() {
+  try {
+    await withDbClient((client) => {
+      const result = client.prepare("PRAGMA table_info(user_settings)").all() as { name: string }[];
+      const hasEnabled = result.some((col) => col.name === "summarization_enabled");
+      const hasModel = result.some((col) => col.name === "summarization_model");
+      const hasInterval = result.some((col) => col.name === "summarization_interval");
+      const hasMessages = result.some((col) => col.name === "summarization_messages_to_summarize");
+      
+      if (!hasEnabled) {
+        console.log("Adding summarization_enabled column...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN summarization_enabled INTEGER NOT NULL DEFAULT 0;");
+      }
+      if (!hasModel) {
+        console.log("Adding summarization_model column...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN summarization_model TEXT NOT NULL DEFAULT 'gpt-4o-mini';");
+      }
+      if (!hasInterval) {
+        console.log("Adding summarization_interval column...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN summarization_interval INTEGER NOT NULL DEFAULT 50;");
+      }
+      if (!hasMessages) {
+        console.log("Adding summarization_messages_to_summarize column...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN summarization_messages_to_summarize INTEGER NOT NULL DEFAULT 30;");
+      }
+    });
+  } catch (e) {
+    console.error("Migration error:", e);
+  }
+}
+
 // Default "Important rules" for public forum threads
 const DEFAULT_PUBLIC_RULES = `- Stay in character as {agentName} at all times
 - You have memory of all public forum threads above — you can reference them naturally
@@ -67,6 +99,7 @@ export async function GET() {
     await syncForumFromCookie(); // Sync forum based on cookie
     await ensureHopCounterColumn(); // Ensure column exists
     await ensureSystemPromptColumns(); // Ensure columns exist
+    await ensureSummarizationColumns(); // Ensure summarization columns exist
     const db = getDb();
     const rows = await db.select().from(userSettings).where(eq(userSettings.id, 1));
     if (rows.length === 0) {
@@ -99,9 +132,20 @@ export async function POST(req: NextRequest) {
     await syncForumFromCookie(); // Sync forum based on cookie
     await ensureHopCounterColumn(); // Ensure column exists
     await ensureSystemPromptColumns(); // Ensure columns exist
+    await ensureSummarizationColumns(); // Ensure summarization columns exist
     const db = getDb();
     const body = await req.json();
-    const { nickname, mainApiBaseUrl, mainApiKey, mainApiModel, hopCounter } = body;
+    const { 
+      nickname, 
+      mainApiBaseUrl, 
+      mainApiKey, 
+      mainApiModel, 
+      hopCounter,
+      summarizationEnabled,
+      summarizationModel,
+      summarizationInterval,
+      summarizationMessagesToSummarize
+    } = body;
 
     // Upsert the singleton row (id=1)
     const existing = await db.select().from(userSettings).where(eq(userSettings.id, 1));
@@ -116,6 +160,10 @@ export async function POST(req: NextRequest) {
           mainApiKey: mainApiKey ?? "",
           mainApiModel: mainApiModel ?? "gpt-4o-mini",
           hopCounter: hopCounter ?? 2,
+          summarizationEnabled: summarizationEnabled ?? false,
+          summarizationModel: summarizationModel ?? "gpt-4o-mini",
+          summarizationInterval: summarizationInterval ?? 50,
+          summarizationMessagesToSummarize: summarizationMessagesToSummarize ?? 30,
           updatedAt: new Date(),
         })
         .returning();
@@ -130,6 +178,10 @@ export async function POST(req: NextRequest) {
           ...(mainApiKey !== undefined && { mainApiKey }),
           ...(mainApiModel !== undefined && { mainApiModel }),
           ...(hopCounter !== undefined && { hopCounter }),
+          ...(summarizationEnabled !== undefined && { summarizationEnabled }),
+          ...(summarizationModel !== undefined && { summarizationModel }),
+          ...(summarizationInterval !== undefined && { summarizationInterval }),
+          ...(summarizationMessagesToSummarize !== undefined && { summarizationMessagesToSummarize }),
           updatedAt: new Date(),
         })
         .where(eq(userSettings.id, 1))
