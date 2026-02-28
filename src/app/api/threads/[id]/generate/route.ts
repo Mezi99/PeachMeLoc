@@ -200,9 +200,10 @@ async function buildPublicForumContext(db: ReturnType<typeof getDb>, currentThre
   }
 
   const lines: string[] = ["== Public Forum — Recent Activity (shared knowledge) =="];
+  // Don't reverse - keep newest posts first (most relevant context)
   for (const [, thread] of byThread) {
     lines.push(`\nThread: "${thread.title}" [${thread.category}]`);
-    for (const p of [...thread.posts].reverse()) {
+    for (const p of thread.posts) {
       lines.push(`  ${p.authorName}: ${p.content.slice(0, 300)}${p.content.length > 300 ? "…" : ""}`);
     }
   }
@@ -219,14 +220,15 @@ async function buildPrivateDMContext(db: ReturnType<typeof getDb>, agentId: numb
     .from(directMessages)
     .where(eq(directMessages.agentId, agentId))
     .orderBy(desc(directMessages.createdAt))
-    .limit(20);
+    .limit(50); // Increased from 20 to include more DM history
 
   if (dms.length === 0) {
     return "";
   }
 
   const lines: string[] = ["== Your Private DM History with the user =="];
-  for (const dm of [...dms].reverse()) {
+  // Don't reverse - keep newest messages first (most relevant)
+  for (const dm of dms) {
     const speaker = dm.role === "human" ? "User" : "You";
     lines.push(`  ${speaker}: ${dm.content.slice(0, 300)}${dm.content.length > 300 ? "…" : ""}`);
   }

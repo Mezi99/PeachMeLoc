@@ -113,9 +113,10 @@ async function buildPublicForumContext(db: Awaited<ReturnType<typeof getDb>>, li
   }
 
   const lines: string[] = ["== Public Forum — Recent Activity (shared knowledge) =="];
+  // Don't reverse - keep newest posts first (most relevant context)
   for (const [, thread] of byThread) {
     lines.push(`\nThread: "${thread.title}" [${thread.category}] in ${thread.channelLabel}`);
-    for (const p of [...thread.posts].reverse()) {
+    for (const p of thread.posts) {
       lines.push(
         `  ${p.authorName}: ${p.content.slice(0, 300)}${p.content.length > 300 ? "…" : ""}`
       );

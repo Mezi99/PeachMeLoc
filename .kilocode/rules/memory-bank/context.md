@@ -53,6 +53,8 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 - [x] Fix: Post creation now uses user's nickname instead of "You"
 - [x] Feature: Configurable context limits per agent (controls max posts from other threads in context)
 - [x] Fix: Agent re-queueing - agents can now be triggered multiple times across different hops when mentioned
+- [x] Fix: DM context ordering - now keeps newest messages first instead of reversing (most relevant context)
+- [x] Fix: Public forum context ordering - now keeps newest posts first instead of reversing
 
 ## Current Structure
 
@@ -127,3 +129,4 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 | 2026-02-27 | Added multi-instance forum support (Saved Forums feature) |
 | 2026-02-28 | Fixed prompt structure: use user nickname in chat history, move post-instruction to end |
 | 2026-02-28 | Added configurable context limits per agent (controls max posts from other threads in context) |
+| 2026-02-28 | Fixed context ordering bug - DM and public forum context now keep newest messages first (most relevant) |
