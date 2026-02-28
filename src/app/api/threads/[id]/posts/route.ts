@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, saveDb, syncForumFromCookie } from "@/db";
-import { posts, threads, agents } from "@/db/schema";
+import { posts, threads, agents, userSettings } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 
 // Extract @mentions from content and return mentioned agent names
@@ -50,6 +50,10 @@ export async function POST(
       return NextResponse.json({ error: "content is required" }, { status: 400 });
     }
 
+    // Get user's nickname for authorName
+    const userSettingsRows = await db.select().from(userSettings).where(eq(userSettings.id, 1));
+    const userNickname = userSettingsRows[0]?.nickname?.trim() || "User";
+
     // Insert human post
     const [post] = await db
       .insert(posts)
@@ -57,7 +61,7 @@ export async function POST(
         threadId,
         content,
         authorType: "human",
-        authorName: "You",
+        authorName: userNickname,
         authorAvatar: "👤",
         agentId: null,
       })

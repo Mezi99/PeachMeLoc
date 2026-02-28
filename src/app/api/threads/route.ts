@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, saveDb, syncForumFromCookie } from "@/db";
-import { threads, posts } from "@/db/schema";
+import { threads, posts, userSettings } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
@@ -38,13 +38,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "title and content are required" }, { status: 400 });
     }
 
+    // Get user's nickname for authorName
+    const userSettingsRows = await db.select().from(userSettings).where(eq(userSettings.id, 1));
+    const userNickname = userSettingsRows[0]?.nickname?.trim() || "User";
+
     const [thread] = await db
       .insert(threads)
       .values({
         title,
         category: category || "General",
         channelId: channelId ? parseInt(channelId) : null,
-        authorName: "You",
+        authorName: userNickname,
         replyCount: 0,
       })
       .returning();
@@ -54,7 +58,7 @@ export async function POST(req: NextRequest) {
       threadId: thread.id,
       content,
       authorType: "human",
-      authorName: "You",
+      authorName: userNickname,
       authorAvatar: "👤",
       agentId: null,
     });
