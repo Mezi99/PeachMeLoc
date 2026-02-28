@@ -46,6 +46,9 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 - [x] Fix: Added WAL mode and busy timeout to prevent SQLite file locking (OS error 1224)
 - [x] Fix: Cookie-based forum persistence to fix forum switching not working
 - [x] Fix: Added data/ directory to .gitignore
+- [x] Fix: Use user nickname in chat history instead of hardcoded "You"
+- [x] Fix: Move post-instruction prompts to end of prompt (after user's last message)
+- [x] Fix: Post creation now uses user's nickname instead of "You"
 
 ## Current Structure
 
@@ -118,3 +121,4 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 | 2026-02-27 | Switched database from @kilocode/app-builder-db to better-sqlite3 |
 | 2026-02-27 | Switched to bun:sqlite (Bun's built-in SQLite) |
 | 2026-02-27 | Added multi-instance forum support (Saved Forums feature) |
+| 2026-02-28 | Fixed prompt structure: use user nickname in chat history, move post-instruction to end |
