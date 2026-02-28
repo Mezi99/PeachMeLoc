@@ -172,21 +172,18 @@ export default function ThreadView({ threadId, initialPosts, activeAgents = [] }
             try {
               const data = JSON.parse(line.slice(6));
               
-              if (data.type === "agent_response") {
-                // Agent is starting to respond - show typing indicator
+              if (data.type === "agent_starting") {
+                // Agent is about to start thinking - show typing indicator
                 setCurrentAgent({ name: data.agentName, avatar: data.agentAvatar });
-                
-                // Add the post to the list
+              } else if (data.type === "agent_response") {
+                // Agent response arrived - add the post to the list
+                // (typing indicator stays visible until we get done or next starting event)
                 const newPost = data.post;
                 setPostsList((prev) => [...prev, { ...newPost, createdAt: newPost.createdAt ?? new Date().toISOString() }]);
-                
-                // Clear typing indicator after a short delay to show the message
-                setTimeout(() => {
-                  setCurrentAgent(null);
-                }, 500);
               } else if (data.type === "done") {
                 // All agents have responded
                 setGenerating(false);
+                setCurrentAgent(null);
               }
             } catch (e) {
               // Skip invalid JSON

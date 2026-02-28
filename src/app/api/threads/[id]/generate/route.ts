@@ -473,7 +473,22 @@ Important rules:
     
     const stream = new ReadableStream({
       async start(controller) {
-        // Send each agent's response as it completes
+        // Send "starting" event BEFORE each agent starts generating (so indicator shows while thinking)
+        for (const agentId of orderedAgentIds) {
+          const agent = allActiveAgents.find(a => a.id === agentId);
+          if (!agent || agentsRespondedThisRound.has(agent.id)) continue;
+          
+          // Check if this agent will actually respond (skip if already responded)
+          // Send "starting" event so client shows typing indicator
+          const startData = JSON.stringify({ 
+            type: 'agent_starting', 
+            agentName: agent.name,
+            agentAvatar: agent.avatar,
+          });
+          controller.enqueue(encoder.encode(`data: ${startData}\n\n`));
+        }
+        
+        // Now send each agent's response as it completes
         for (const post of newAgentPosts) {
           const data = JSON.stringify({ 
             type: 'agent_response', 
