@@ -52,6 +52,7 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 - [x] Fix: Stream each agent's LLM response as it completes (real timing) instead of artificial delays
 - [x] Fix: Post creation now uses user's nickname instead of "You"
 - [x] Feature: Configurable context limits per agent (controls max posts from other threads in context)
+- [x] Fix: Agent re-queueing - agents can now be triggered multiple times across different hops when mentioned
 
 ## Current Structure
 
