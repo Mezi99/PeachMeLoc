@@ -20,6 +20,22 @@ async function ensureHopCounterColumn() {
   }
 }
 
+// Ensure context_limit column exists in agents table (run migration if needed)
+async function ensureContextLimitColumn() {
+  try {
+    await withDbClient((client) => {
+      const result = client.prepare("PRAGMA table_info(agents)").all() as { name: string }[];
+      const hasContextLimit = result.some((col) => col.name === "context_limit");
+      if (!hasContextLimit) {
+        console.log("Adding context_limit column to agents...");
+        client.exec("ALTER TABLE agents ADD COLUMN context_limit INTEGER NOT NULL DEFAULT 30;");
+      }
+    });
+  } catch (e) {
+    console.error("Migration error:", e);
+  }
+}
+
 // Ensure system_prompt columns exist (run migration if needed)
 async function ensureSystemPromptColumns() {
   try {
@@ -95,11 +111,11 @@ async function callLLM(
 
 /**
  * Build a shared public forum context block.
- * Fetches the last 30 posts across ALL threads (excluding the current thread,
+ * Fetches the last N posts across ALL threads (excluding the current thread,
  * which is passed separately as the active conversation).
  * All agents see this identically — it represents shared public knowledge.
  */
-async function buildPublicForumContext(db: ReturnType<typeof getDb>, currentThreadId: number, userNickname: string): Promise<string> {
+async function buildPublicForumContext(db: ReturnType<typeof getDb>, currentThreadId: number, userNickname: string, limit: number = 30): Promise<string> {
   // Get recent posts from OTHER threads (not the current one)
   const recentPosts = await db
     .select({
@@ -116,7 +132,7 @@ async function buildPublicForumContext(db: ReturnType<typeof getDb>, currentThre
     .innerJoin(threads, eq(posts.threadId, threads.id))
     .where(ne(posts.threadId, currentThreadId))
     .orderBy(desc(posts.createdAt))
-    .limit(30);
+    .limit(limit);
 
   if (recentPosts.length === 0) {
     return "";
@@ -190,6 +206,7 @@ export async function POST(
     await syncForumFromCookie(); // Sync forum based on cookie
     await ensureHopCounterColumn(); // Ensure column exists
     await ensureSystemPromptColumns(); // Ensure columns exist
+    await ensureContextLimitColumn(); // Ensure context_limit column exists in agents table
     const db = getDb();
     const { id } = await params;
     const threadId = parseInt(id);
@@ -274,8 +291,7 @@ Important rules:
       .orderBy(asc(posts.createdAt));
 
     // Build shared public context once (same for all agents)
-    const publicContext = await buildPublicForumContext(db, threadId, userNickname);
-
+    // Note: Each agent now has its own contextLimit, so we pass it when building context
     const channelLabel = thread.channelName
       ? `${thread.channelEmoji ?? ""} #${thread.channelName}`.trim()
       : "General";
@@ -332,11 +348,13 @@ Important rules:
             .where(eq(posts.threadId, threadId))
             .orderBy(asc(posts.createdAt));
           
-          // Build context for this agent
+          // Build context for this agent - each agent can have different contextLimit
+          const agentContextLimit = agent.contextLimit || 30;
+          const publicForumContext = await buildPublicForumContext(db, threadId, userNickname, agentContextLimit);
           const privateDMContext = await buildPrivateDMContext(db, agent.id, userNickname);
           
           const contextSections: string[] = [];
-          if (publicContext) contextSections.push(publicContext);
+          if (publicForumContext) contextSections.push(publicForumContext);
           if (privateDMContext) contextSections.push(privateDMContext);
           
           const contextBlock =

@@ -31,7 +31,7 @@ export async function PUT(
     const db = getDb();
     const { id } = await params;
     const body = await req.json();
-    const { name, avatar, personaPrompt, llmBaseUrl, llmApiKey, llmModel, isActive } = body;
+    const { name, avatar, personaPrompt, llmBaseUrl, llmApiKey, llmModel, isActive, contextLimit } = body;
 
     // Validate name format if provided
     if (name !== undefined) {
@@ -59,6 +59,7 @@ export async function PUT(
         ...(llmApiKey !== undefined && { llmApiKey }),
         ...(llmModel !== undefined && { llmModel }),
         ...(isActive !== undefined && { isActive }),
+        ...(contextLimit !== undefined && { contextLimit }),
       })
       .where(eq(agents.id, parseInt(id)))
       .returning();

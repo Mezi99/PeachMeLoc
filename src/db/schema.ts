@@ -9,6 +9,7 @@ export const agents = sqliteTable("agents", {
   llmApiKey: text("llm_api_key").notNull().default(""),
   llmModel: text("llm_model").notNull().default("gpt-4o-mini"),
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  contextLimit: integer("context_limit").notNull().default(30), // Max posts to include in context
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 

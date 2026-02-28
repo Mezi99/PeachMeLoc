@@ -44,7 +44,8 @@ function runMigrationsOnDb(dbPath: string) {
     "0004_agent_name_unique.sql",
     "0005_hop_counter.sql",
     "0006_system_prompt.sql",
-    "0007_important_rules.sql"
+    "0007_important_rules.sql",
+    "0008_agent_context_limit.sql"
   ];
 
   for (const file of migrationFiles) {

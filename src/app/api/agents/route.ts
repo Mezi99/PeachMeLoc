@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     await syncForumFromCookie(); // Sync forum based on cookie
     const db = getDb();
     const body = await req.json();
-    const { name, avatar, personaPrompt, llmBaseUrl, llmApiKey, llmModel } = body;
+    const { name, avatar, personaPrompt, llmBaseUrl, llmApiKey, llmModel, contextLimit } = body;
 
     if (!name || !personaPrompt) {
       return NextResponse.json({ error: "name and personaPrompt are required" }, { status: 400 });
@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
         llmApiKey: llmApiKey || "",
         llmModel: llmModel || "gpt-4o-mini",
         isActive: true,
+        contextLimit: contextLimit || 30,
       })
       .returning();
 

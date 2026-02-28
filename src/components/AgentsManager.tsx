@@ -12,6 +12,7 @@ interface Agent {
   llmApiKey: string;
   llmModel: string;
   isActive: boolean;
+  contextLimit: number;
   createdAt: string | null;
 }
 
@@ -28,6 +29,7 @@ const DEFAULT_AGENT: Omit<Agent, "id" | "createdAt"> = {
   llmApiKey: "",
   llmModel: "gpt-4o-mini",
   isActive: true,
+  contextLimit: 30,
 };
 
 interface AgentFormProps {
@@ -42,7 +44,7 @@ function AgentForm({ initial, onSave, onCancel, saving }: AgentFormProps) {
   const [showKey, setShowKey] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
-  const set = (field: keyof typeof form, value: string | boolean) =>
+  const set = (field: keyof typeof form, value: string | boolean | number) =>
     setForm((f) => ({ ...f, [field]: value }));
 
   return (
@@ -143,6 +145,24 @@ function AgentForm({ initial, onSave, onCancel, saving }: AgentFormProps) {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Context Limit */}
+      <div>
+        <label className="block text-xs font-medium text-gray-400 mb-1">
+          Context Limit
+          <span className="text-gray-600 font-normal ml-1">— max posts from other threads to include in context</span>
+        </label>
+        <input
+          type="number"
+          min={1}
+          max={100}
+          value={form.contextLimit}
+          onChange={(e) => set("contextLimit", parseInt(e.target.value) || 30)}
+          placeholder="30"
+          className="w-32 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 text-sm"
+        />
+        <span className="text-xs text-gray-500 ml-2">posts</span>
       </div>
 
       {/* Active toggle */}
@@ -282,6 +302,7 @@ export default function AgentsManager({ initialAgents }: { initialAgents: Agent[
                   llmApiKey: agent.llmApiKey,
                   llmModel: agent.llmModel,
                   isActive: agent.isActive,
+                  contextLimit: agent.contextLimit || 30,
                 }}
                 onSave={(data) => handleUpdate(agent.id, data)}
                 onCancel={() => setEditingId(null)}

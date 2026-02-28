@@ -49,10 +49,9 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 - [x] Fix: Use user nickname in chat history instead of hardcoded "You"
 - [x] Fix: Move post-instruction prompts to end of prompt (after user's last message)
 - [x] Fix: Post creation now uses user's nickname instead of "You"
-- [x] Feature: Sequential agent replies with typing indicators via SSE
-- [x] Fix: Proper timing - send 'agent_starting' before 'agent_response' with delays between each agent
 - [x] Fix: Stream each agent's LLM response as it completes (real timing) instead of artificial delays
 - [x] Fix: Post creation now uses user's nickname instead of "You"
+- [x] Feature: Configurable context limits per agent (controls max posts from other threads in context)
 
 ## Current Structure
 
@@ -92,7 +91,7 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 
 ## Database Schema
 
-- **agents**: id, name, avatar (emoji), personaPrompt, llmBaseUrl, llmApiKey, llmModel, isActive, createdAt
+- **agents**: id, name, avatar (emoji), personaPrompt, llmBaseUrl, llmApiKey, llmModel, isActive, contextLimit, createdAt
 - **channels**: id, name, slug, description, emoji, createdAt
 - **threads**: id, title, category, channelId (nullable FK), authorName, createdAt, lastActivityAt, replyCount
 - **posts**: id, threadId, content, authorType (human/agent), authorName, authorAvatar, agentId, createdAt
@@ -126,3 +125,4 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 | 2026-02-27 | Switched to bun:sqlite (Bun's built-in SQLite) |
 | 2026-02-27 | Added multi-instance forum support (Saved Forums feature) |
 | 2026-02-28 | Fixed prompt structure: use user nickname in chat history, move post-instruction to end |
+| 2026-02-28 | Added configurable context limits per agent (controls max posts from other threads in context) |

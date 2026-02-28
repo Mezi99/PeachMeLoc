@@ -45,12 +45,28 @@ async function ensureImportantRulesColumns() {
   }
 }
 
+// Ensure context_limit column exists in agents table (run migration if needed)
+async function ensureContextLimitColumn() {
+  try {
+    await withDbClient((client) => {
+      const result = client.prepare("PRAGMA table_info(agents)").all() as { name: string }[];
+      const hasContextLimit = result.some((col) => col.name === "context_limit");
+      if (!hasContextLimit) {
+        console.log("Adding context_limit column to agents...");
+        client.exec("ALTER TABLE agents ADD COLUMN context_limit INTEGER NOT NULL DEFAULT 30;");
+      }
+    });
+  } catch (e) {
+    console.error("Migration error:", e);
+  }
+}
+
 /**
  * Build a shared public forum context block.
- * Fetches the last 40 posts across ALL public threads.
+ * Fetches the last N posts across ALL public threads.
  * All agents see this identically — it represents shared public knowledge.
  */
-async function buildPublicForumContext(db: Awaited<ReturnType<typeof getDb>>): Promise<string> {
+async function buildPublicForumContext(db: Awaited<ReturnType<typeof getDb>>, limit: number = 40): Promise<string> {
   const recentPosts = await db
     .select({
       content: posts.content,
@@ -65,7 +81,7 @@ async function buildPublicForumContext(db: Awaited<ReturnType<typeof getDb>>): P
     .innerJoin(threads, eq(posts.threadId, threads.id))
     .leftJoin(channels, eq(threads.channelId, channels.id))
     .orderBy(desc(posts.createdAt))
-    .limit(40);
+    .limit(limit);
 
   if (recentPosts.length === 0) {
     return "";
@@ -136,6 +152,7 @@ export async function POST(
   try {
     await syncForumFromCookie(); // Sync forum based on cookie
     await ensureImportantRulesColumns(); // Ensure columns exist
+    await ensureContextLimitColumn(); // Ensure context_limit column exists in agents table
     const db = getDb();
     const { agentId } = await params;
     const agentIdNum = parseInt(agentId);
@@ -213,8 +230,9 @@ Important rules:
       .where(eq(directMessages.agentId, agentIdNum))
       .orderBy(asc(directMessages.createdAt));
 
-    // Build shared public forum context (same for all agents — public knowledge)
-    const publicContext = await buildPublicForumContext(db);
+    // Build shared public forum context - each agent has its own contextLimit
+    const agentContextLimit = agent.contextLimit || 40;
+    const publicContext = await buildPublicForumContext(db, agentContextLimit);
 
     // Compose system prompt with layered context
     const contextBlock = publicContext

@@ -1,5 +1,5 @@
 {
-  "version": "7",
+  "version": "8",
   "dialect": "sqlite",
   "entries": [
     {
@@ -21,6 +21,48 @@
       "version": "6",
       "when": 1772200000000,
       "tag": "0002_user_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1772210000000,
+      "tag": "0003_llm_prompt",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1772211000000,
+      "tag": "0004_agent_name_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1772212000000,
+      "tag": "0005_hop_counter",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1772213000000,
+      "tag": "0006_system_prompt",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1772214000000,
+      "tag": "0007_important_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1772215000000,
+      "tag": "0008_agent_context_limit",
       "breakpoints": true
     }
   ]
