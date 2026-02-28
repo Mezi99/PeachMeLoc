@@ -50,6 +50,7 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 - [x] Fix: Move post-instruction prompts to end of prompt (after user's last message)
 - [x] Fix: Post creation now uses user's nickname instead of "You"
 - [x] Feature: Sequential agent replies with typing indicators via SSE
+- [x] Fix: Proper timing - send 'agent_starting' before 'agent_response' with delays between each agent
 - [x] Fix: Post creation now uses user's nickname instead of "You"
 
 ## Current Structure
