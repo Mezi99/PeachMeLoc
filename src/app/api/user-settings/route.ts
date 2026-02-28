@@ -32,19 +32,20 @@ async function ensureSummarizationColumns() {
       
       if (!hasEnabled) {
         console.log("Adding summarization_enabled column...");
-        client.exec("ALTER TABLE user_settings ADD COLUMN summarization_enabled INTEGER NOT NULL DEFAULT 0;");
+        // Use DEFAULT 0 to handle existing rows
+        client.exec("ALTER TABLE user_settings ADD COLUMN summarization_enabled INTEGER DEFAULT 0;");
       }
       if (!hasModel) {
         console.log("Adding summarization_model column...");
-        client.exec("ALTER TABLE user_settings ADD COLUMN summarization_model TEXT NOT NULL DEFAULT 'gpt-4o-mini';");
+        client.exec("ALTER TABLE user_settings ADD COLUMN summarization_model TEXT DEFAULT 'gpt-4o-mini';");
       }
       if (!hasInterval) {
         console.log("Adding summarization_interval column...");
-        client.exec("ALTER TABLE user_settings ADD COLUMN summarization_interval INTEGER NOT NULL DEFAULT 50;");
+        client.exec("ALTER TABLE user_settings ADD COLUMN summarization_interval INTEGER DEFAULT 50;");
       }
       if (!hasMessages) {
         console.log("Adding summarization_messages_to_summarize column...");
-        client.exec("ALTER TABLE user_settings ADD COLUMN summarization_messages_to_summarize INTEGER NOT NULL DEFAULT 30;");
+        client.exec("ALTER TABLE user_settings ADD COLUMN summarization_messages_to_summarize INTEGER DEFAULT 30;");
       }
     });
   } catch (e) {

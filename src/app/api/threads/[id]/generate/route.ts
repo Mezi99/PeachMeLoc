@@ -27,7 +27,64 @@ async function ensureContextLimitColumn() {
       const hasContextLimit = result.some((col) => col.name === "context_limit");
       if (!hasContextLimit) {
         console.log("Adding context_limit column to agents...");
-        client.exec("ALTER TABLE agents ADD COLUMN context_limit INTEGER NOT NULL DEFAULT 30;");
+        client.exec("ALTER TABLE agents ADD COLUMN context_limit INTEGER DEFAULT 30;");
+      }
+    });
+  } catch (e) {
+    console.error("Migration error:", e);
+  }
+}
+
+// Ensure summarization columns exist (run migration if needed)
+async function ensureSummarizationColumns() {
+  try {
+    await withDbClient((client) => {
+      const result = client.prepare("PRAGMA table_info(user_settings)").all() as { name: string }[];
+      const hasEnabled = result.some((col) => col.name === "summarization_enabled");
+      const hasModel = result.some((col) => col.name === "summarization_model");
+      const hasInterval = result.some((col) => col.name === "summarization_interval");
+      const hasMessages = result.some((col) => col.name === "summarization_messages_to_summarize");
+      
+      if (!hasEnabled) {
+        console.log("Adding summarization_enabled column...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN summarization_enabled INTEGER DEFAULT 0;");
+      }
+      if (!hasModel) {
+        console.log("Adding summarization_model column...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN summarization_model TEXT DEFAULT 'gpt-4o-mini';");
+      }
+      if (!hasInterval) {
+        console.log("Adding summarization_interval column...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN summarization_interval INTEGER DEFAULT 50;");
+      }
+      if (!hasMessages) {
+        console.log("Adding summarization_messages_to_summarize column...");
+        client.exec("ALTER TABLE user_settings ADD COLUMN summarization_messages_to_summarize INTEGER DEFAULT 30;");
+      }
+    });
+  } catch (e) {
+    console.error("Migration error:", e);
+  }
+}
+
+// Ensure thread_summaries table exists
+async function ensureThreadSummariesTable() {
+  try {
+    await withDbClient((client) => {
+      const result = client.prepare("PRAGMA table_info(thread_summaries)").all() as { name: string }[];
+      if (result.length === 0) {
+        console.log("Creating thread_summaries table...");
+        client.exec(`
+          CREATE TABLE thread_summaries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            thread_id INTEGER NOT NULL REFERENCES threads(id),
+            agent_id INTEGER NOT NULL REFERENCES agents(id),
+            summary_content TEXT NOT NULL,
+            summarized_up_to_post_id INTEGER NOT NULL,
+            created_at INTEGER DEFAULT (strftime('%s', 'now'))
+          )
+        `);
+        client.exec(`CREATE INDEX IF NOT EXISTS idx_thread_summaries_thread_agent ON thread_summaries(thread_id, agent_id)`);
       }
     });
   } catch (e) {
@@ -358,6 +415,8 @@ export async function POST(
     await ensureHopCounterColumn();
     await ensureSystemPromptColumns();
     await ensureContextLimitColumn();
+    await ensureSummarizationColumns();
+    await ensureThreadSummariesTable();
     const db = getDb();
     const { id } = await params;
     const threadId = parseInt(id);
