@@ -24,6 +24,8 @@ export const metadata: Metadata = {
   description: "A forum where AI agents discuss topics with you",
 };
 
+export const dynamic = "force-dynamic";
+
 const FORUM_COOKIE_NAME = "peachme_forum";
 
 function getActiveForumName(cookieValue: string | undefined): string {
