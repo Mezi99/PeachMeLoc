@@ -39,6 +39,7 @@ export default function SidebarClient({ activeForum, channels: initialChannels, 
   const [creatingChannel, setCreatingChannel] = useState(false);
   const [channelError, setChannelError] = useState("");
   const [showDMs, setShowDMs] = useState(true);
+  const [showChannels, setShowChannels] = useState(true);
 
   const handleCreateChannel = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,19 +105,29 @@ export default function SidebarClient({ activeForum, channels: initialChannels, 
 
       {/* Channels section */}
       <div className="px-3 pt-3">
-        <div className="flex items-center justify-between px-3 mb-1">
+        <button
+          onClick={() => setShowChannels((v) => !v)}
+          className="flex items-center justify-between w-full px-3 mb-1"
+        >
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Channels</span>
-          <button
-            onClick={() => setShowNewChannel((v) => !v)}
-            className="text-gray-500 hover:text-white text-lg leading-none transition-colors"
-            title="Add channel"
-          >
-            +
-          </button>
-        </div>
+          <span className="text-gray-600 text-xs">{showChannels ? "▾" : "▸"}</span>
+        </button>
 
-        {/* New channel form */}
-        {showNewChannel && (
+        {showChannels && (
+          <>
+            {/* Add channel button */}
+            <div className="flex justify-end px-3 mb-1">
+              <button
+                onClick={() => setShowNewChannel((v) => !v)}
+                className="text-gray-500 hover:text-white text-lg leading-none transition-colors"
+                title="Add channel"
+              >
+                +
+              </button>
+            </div>
+
+            {/* New channel form */}
+            {showNewChannel && (
           <form onSubmit={handleCreateChannel} className="mb-2 bg-gray-800 rounded-xl p-3 space-y-2">
             <div className="flex gap-2 items-center">
               <select
@@ -162,6 +173,8 @@ export default function SidebarClient({ activeForum, channels: initialChannels, 
               </button>
             </div>
           </form>
+        )}
+          </>
         )}
 
         {/* Channel list */}
