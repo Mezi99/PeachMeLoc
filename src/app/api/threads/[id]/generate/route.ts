@@ -597,10 +597,20 @@ Important rules:
               .replace(/{channelName}/g, channelLabel)
               .replace(/{importantRules}/g, publicRules);
             
-            const conversationHistory = latestPosts.map((p) => ({
-              role: p.authorType === "human" ? "user" : "assistant",
-              content: `[${p.authorName}]: ${p.content}`,
-            }));
+            // Solution 2: Differentiate human vs agent messages to prevent impersonation
+            // Agents see other agents as "Other participants" to avoid identity confusion
+            const conversationHistory = latestPosts.map((p) => {
+              if (p.authorType === "human") {
+                // Show human posts normally
+                return { role: "user" as const, content: p.content };
+              } else if (p.agentId === agent.id) {
+                // This is the current agent's own previous response - show it
+                return { role: "assistant" as const, content: p.content };
+              } else {
+                // Other agents - hide their names to prevent impersonation confusion
+                return { role: "assistant" as const, content: "[Other participants have responded in this thread]" };
+              }
+            });
             
             const messages = [
               { role: "system", content: systemPrompt },
