@@ -56,7 +56,8 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 - [x] Fix: DM context ordering - now keeps newest messages first instead of reversing (most relevant context)
 - [x] Fix: Public forum context ordering - now keeps newest posts first instead of reversing
 - [x] Fix: Agent impersonation - added anti-impersonation rules to default prompts (prototype rules)
-- [x] Fix: Agent impersonation - differentiate conversation history (hide other agent names)
+- [x] Fix: Agent impersonation - added anti-impersonation rules to default prompts (prototype rules)
+- [x] Fix: Agent impersonation - post-generation validation with retry on detection
 
 ## Current Structure
 

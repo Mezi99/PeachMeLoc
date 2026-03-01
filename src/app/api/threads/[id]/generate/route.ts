@@ -628,11 +628,9 @@ Important rules:
             function containsImpersonation(content: string): string | null {
               const contentLower = content.toLowerCase();
               for (const name of otherAgentNames) {
-                // Check if content starts with or contains other agent names prominently
-                if (contentLower.startsWith(name) || 
-                    contentLower.includes(` ${name} `) ||
-                    contentLower.includes(`\"${name}\"`) ||
-                    contentLower.includes(`'${name}'`)) {
+                // Check if response contains [agentname] with another agent's name in brackets
+                // This is impersonation: [George]: means writing as George
+                if (contentLower.includes(`[${name}]`)) {
                   return name;
                 }
               }
