@@ -1,6 +1,6 @@
 import { getDb } from "@/db";
 import { threads, channels } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and } from "drizzle-orm";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -34,11 +34,12 @@ function formatDate(date: Date | null) {
 
 export default async function HomePage() {
   const db = getDb();
-  const allThreads = await db.select().from(threads).orderBy(desc(threads.lastActivityAt));
+  // Only fetch active threads
+  const allThreads = await db.select().from(threads).where(eq(threads.isActive, true)).orderBy(desc(threads.lastActivityAt));
 
-  // Get channel names for all threads
+  // Get channel names for all threads - only active channels
   const channelMap = new Map<number, { name: string; slug: string; emoji: string }>();
-  const allChannels = await db.select().from(channels);
+  const allChannels = await db.select().from(channels).where(eq(channels.isActive, true));
   for (const channel of allChannels) {
     channelMap.set(channel.id, { name: channel.name, slug: channel.slug, emoji: channel.emoji });
   }
