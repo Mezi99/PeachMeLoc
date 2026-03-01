@@ -8,7 +8,7 @@ interface Thread {
   id: number;
   title: string;
   category: string;
-  channelId: number;
+  channelId: number | null;
   authorName: string;
   createdAt: string | null;
   lastActivityAt: string | null;

@@ -87,6 +87,8 @@ export const userSettings = sqliteTable("user_settings", {
   summarizationModel: text("summarization_model").notNull().default("gpt-4o-mini"),
   summarizationInterval: integer("summarization_interval").notNull().default(50), // Trigger after N messages
   summarizationMessagesToSummarize: integer("summarization_messages_to_summarize").notNull().default(30), // Compress N messages into summary
+  // Context limit - how many recent posts/messages to include in prompts
+  contextLimit: integer("context_limit").notNull().default(20), // Default 20 posts/messages
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 

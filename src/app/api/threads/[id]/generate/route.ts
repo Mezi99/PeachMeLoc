@@ -191,6 +191,7 @@ async function buildPublicForumContext(db: ReturnType<typeof getDb>, currentThre
     return "";
   }
 
+  // Group by thread
   const byThread = new Map<number, { title: string; category: string; posts: typeof recentPosts }>();
   for (const p of recentPosts) {
     if (!byThread.has(p.threadId)) {
@@ -200,10 +201,14 @@ async function buildPublicForumContext(db: ReturnType<typeof getDb>, currentThre
   }
 
   const lines: string[] = ["<Your_Public_Activity>\n\n== Public Forum — Recent Activity (shared knowledge) =="];
-  // Don't reverse - keep newest posts first (most relevant context)
+  // Output from oldest to newest within each thread
   for (const [, thread] of byThread) {
+    // Sort posts oldest to newest for chronological order in prompt
+    const sortedPosts = [...thread.posts].sort((a, b) => 
+      (a.createdAt?.getTime() || 0) - (b.createdAt?.getTime() || 0)
+    );
     lines.push(`\nThread: "${thread.title}" [${thread.category}]`);
-    for (const p of thread.posts) {
+    for (const p of sortedPosts) {
       const turnTag = p.authorType === "human" 
         ? `<user_turn sender="${p.authorName}">` 
         : `<assistant_turn sender="${p.authorName}">`;
@@ -219,21 +224,25 @@ async function buildPublicForumContext(db: ReturnType<typeof getDb>, currentThre
 /**
  * Build the private DM context for a specific agent.
  */
-async function buildPrivateDMContext(db: ReturnType<typeof getDb>, agentId: number): Promise<string> {
+async function buildPrivateDMContext(db: ReturnType<typeof getDb>, agentId: number, limit: number = 20): Promise<string> {
   const dms = await db
     .select()
     .from(directMessages)
     .where(eq(directMessages.agentId, agentId))
     .orderBy(desc(directMessages.createdAt))
-    .limit(50); // Increased from 20 to include more DM history
+    .limit(limit);
 
   if (dms.length === 0) {
     return "";
   }
 
+  // Sort oldest to newest for chronological order in prompt
+  const sortedDms = [...dms].sort((a, b) => 
+    (a.createdAt?.getTime() || 0) - (b.createdAt?.getTime() || 0)
+  );
+
   const lines: string[] = ["<Your_Private_Activity>\n\n== Your Private DM History with the user =="];
-  // Don't reverse - keep newest messages first (most relevant)
-  for (const dm of dms) {
+  for (const dm of sortedDms) {
     const speaker = dm.role === "human" ? "User" : "You";
     lines.push(`  ${speaker}: ${dm.content.slice(0, 300)}${dm.content.length > 300 ? "…" : ""}`);
   }
@@ -576,10 +585,10 @@ Important rules:
               .where(eq(posts.threadId, threadId))
               .orderBy(asc(posts.createdAt));
             
-            // Build context
-            const agentContextLimit = agent.contextLimit || 30;
-            const publicForumContext = await buildPublicForumContext(db, threadId, agentContextLimit);
-            const privateDMContext = await buildPrivateDMContext(db, agent.id);
+            // Build context - public forum uses user_settings limit, DM uses agent's limit
+            const publicForumLimit = mainApi.contextLimit || 20;
+            const publicForumContext = await buildPublicForumContext(db, threadId, publicForumLimit);
+            const privateDMContext = await buildPrivateDMContext(db, agent.id, agent.contextLimit || 20);
             const threadSummaryContext = await getThreadSummaries(db, threadId, agent.id);
             
             const contextSections: string[] = [];

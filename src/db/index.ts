@@ -140,10 +140,10 @@ function runFallbackMigrations(client: Database.Database) {
 
     // Check if user_settings table has summarization columns
     const userSettingsTableInfo = client.prepare("PRAGMA table_info(user_settings)").all() as { name: string }[];
-    const hasSummarizationEnabled = userSettingsTableInfo.some((col) => col.name === "summarization_enabled");
-    const hasSummarizationModel = userSettingsTableInfo.some((col) => col.name === "summarization_model");
-    const hasSummarizationInterval = userSettingsTableInfo.some((col) => col.name === "summarization_interval");
-    const hasSummarizationMessages = userSettingsTableInfo.some((col) => col.name === "summarization_messages_to_summarize");
+    let hasSummarizationEnabled = userSettingsTableInfo.some((col) => col.name === "summarization_enabled");
+    let hasSummarizationModel = userSettingsTableInfo.some((col) => col.name === "summarization_model");
+    let hasSummarizationInterval = userSettingsTableInfo.some((col) => col.name === "summarization_interval");
+    let hasSummarizationMessages = userSettingsTableInfo.some((col) => col.name === "summarization_messages_to_summarize");
 
     if (!hasSummarizationEnabled) {
       console.log("Adding summarization_enabled column (fallback migration)...");
@@ -195,6 +195,13 @@ function runFallbackMigrations(client: Database.Database) {
       console.log("Adding is_active column to threads (fallback migration)...");
       client.exec("ALTER TABLE threads ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1;");
       client.exec("CREATE INDEX IF NOT EXISTS idx_threads_active ON threads(is_active)");
+    }
+
+    // Check if user_settings table has context_limit column (already fetched above)
+    let hasUserSettingsContextLimit = userSettingsTableInfo.some((col) => col.name === "context_limit");
+    if (!hasUserSettingsContextLimit) {
+      console.log("Adding context_limit column to user_settings (fallback migration)...");
+      client.exec("ALTER TABLE user_settings ADD COLUMN context_limit INTEGER NOT NULL DEFAULT 20;");
     }
   } catch (e) {
     console.error("Fallback migration error:", e);
