@@ -618,37 +618,47 @@ Important rules:
             let agentPost: typeof posts.$inferSelect | null = null;
             let responseContent = "";
             
-            // Solution 4: Post-generation validation - check for impersonation and retry
+            // Solution 4: Post-generation validation - check for impersonation and fix
             const otherAgentNames = allActiveAgents
               .filter(a => a.id !== agent.id)
               .map(a => a.name.toLowerCase());
             
-            const IMPERSONATION_WARNING = "\\n\\n⚠️ CRITICAL REMINDER: You are {agentName}. Do NOT write as any other agent. If you catch yourself writing as someone else, stop and rewrite as yourself.";
+            const IMPERSONATION_WARNING = "\\n\\n⚠️ CRITICAL REMINDER: You are {agentName}. Write ONLY as yourself. Do NOT write as any other agent. If you see brackets with another name like [OtherName], do NOT continue from there.";
             
-            function containsImpersonation(content: string): string | null {
+            // Check for impersonation and truncate/regenerate as needed
+            function handleImpersonation(content: string, attempt: number): string {
               const contentLower = content.toLowerCase();
+              
               for (const name of otherAgentNames) {
-                // Check if response contains [agentname] with another agent's name in brackets
-                // This is impersonation: [George]: means writing as George
-                if (contentLower.includes(`[${name}]`)) {
-                  return name;
+                const impersonationPattern = `[${name}]`;
+                const idx = contentLower.indexOf(impersonationPattern);
+                
+                if (idx !== -1) {
+                  // Found impersonation - truncate to content before it
+                  const truncated = content.substring(0, idx).trim();
+                  
+                  // Check if truncated content is meaningful (more than just the agent name)
+                  if (truncated.length < 3) {
+                    // Too short - regenerate with warning
+                    if (attempt < 2) {
+                      console.log(`[Hop ${currentHop}] Impersonation in '${agent.name}' response (attempt ${attempt + 1}): found [${name}], regenerating...`);
+                      return null; // Signal to retry
+                    } else {
+                      // Max attempts reached - discard this response
+                      console.log(`[Hop ${currentHop}] Max retries reached, discarding impersonated response`);
+                      return "[Response discarded due to impersonation]";
+                    }
+                  } else {
+                    // Good content before impersonation - keep it
+                    console.log(`[Hop ${currentHop}] Truncated impersonation in '${agent.name}' response: kept ${truncated.length} chars before [${name}]`);
+                    return truncated;
+                  }
                 }
               }
-              return null;
+              
+              // No impersonation found - return original content
+              return content;
             }
-            
-            // Helper to regenerate with stronger warning
-            async function regenerateWithWarning(warningMessage: string): Promise<string> {
-              const retryMessages = [
-                ...messages,
-                { role: "system" as const, content: warningMessage }
-              ];
-              return callLLM(effectiveBaseUrl, effectiveApiKey, effectiveModel, retryMessages);
-            }
-            
-            const MAX_RETRIES = 2;
-            let retryCount = 0;
-            let impersonationDetected = false;
             
             try {
               responseContent = await callLLM(
@@ -658,22 +668,24 @@ Important rules:
                 messages
               );
               
-              // Check for impersonation in response
-              const impersonator = containsImpersonation(responseContent);
-              if (impersonator) {
-                console.log(`[Hop ${currentHop}] Impersonation detected: ${agent.name} wrote as ${impersonator}, retrying...`);
-                impersonationDetected = true;
+              // Handle impersonation with truncate or regenerate logic
+              let attempt = 0;
+              while (attempt < 2) {
+                const result = handleImpersonation(responseContent, attempt);
                 
-                // Retry with stronger warning
-                const warning = IMPERSONATION_WARNING.replace(/{agentName}/g, agent.name);
-                responseContent = await regenerateWithWarning(warning);
-                retryCount++;
-                
-                // Second check after retry
-                const impersonator2 = containsImpersonation(responseContent);
-                if (impersonator2) {
-                  console.log(`[Hop ${currentHop}] Impersonation still detected on retry, giving up`);
-                  // Keep the response but log the issue
+                if (result === null) {
+                  // Need to regenerate
+                  attempt++;
+                  const warning = IMPERSONATION_WARNING.replace(/{agentName}/g, agent.name);
+                  const retryMessages = [
+                    ...messages,
+                    { role: "system" as const, content: warning }
+                  ];
+                  responseContent = await callLLM(effectiveBaseUrl, effectiveApiKey, effectiveModel, retryMessages);
+                } else {
+                  // Got valid content (possibly truncated)
+                  responseContent = result;
+                  break;
                 }
               }
               
