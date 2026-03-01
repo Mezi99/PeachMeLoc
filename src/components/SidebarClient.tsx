@@ -26,8 +26,6 @@ interface SidebarClientProps {
   agents: AgentSummary[];
 }
 
-const EMOJI_OPTIONS = ["💬", "🔥", "🎮", "🧪", "📰", "🎨", "🏆", "🌍", "💡", "🎵", "📚", "🤖", "🌿", "⚡", "🎭"];
-
 export default function SidebarClient({ activeForum, channels: initialChannels, agents }: SidebarClientProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -38,48 +36,8 @@ export default function SidebarClient({ activeForum, channels: initialChannels, 
     setChannels(initialChannels);
   }, [initialChannels]);
   
-  const [showNewChannel, setShowNewChannel] = useState(false);
-  const [newChannelName, setNewChannelName] = useState("");
-  const [newChannelDesc, setNewChannelDesc] = useState("");
-  const [newChannelEmoji, setNewChannelEmoji] = useState("💬");
-  const [creatingChannel, setCreatingChannel] = useState(false);
-  const [channelError, setChannelError] = useState("");
   const [showDMs, setShowDMs] = useState(true);
   const [showChannels, setShowChannels] = useState(true);
-
-  const handleCreateChannel = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newChannelName.trim()) return;
-    setCreatingChannel(true);
-    setChannelError("");
-    try {
-      const res = await fetch("/api/channels", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newChannelName.trim(),
-          description: newChannelDesc.trim(),
-          emoji: newChannelEmoji,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to create channel");
-      }
-      const channel = await res.json();
-      setChannels((prev) => [...prev, channel]);
-      setShowNewChannel(false);
-      setNewChannelName("");
-      setNewChannelDesc("");
-      setNewChannelEmoji("💬");
-      router.push(`/channel/${channel.slug}`);
-      router.refresh();
-    } catch (err: unknown) {
-      setChannelError(err instanceof Error ? err.message : "Failed to create channel");
-    } finally {
-      setCreatingChannel(false);
-    }
-  };
 
   return (
     <aside className="w-60 shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col h-full">
@@ -121,88 +79,28 @@ export default function SidebarClient({ activeForum, channels: initialChannels, 
 
         {showChannels && (
           <>
-            {/* Add channel button */}
-            <div className="flex justify-end px-3 mb-1">
-              <button
-                onClick={() => setShowNewChannel((v) => !v)}
-                className="text-gray-500 hover:text-white text-lg leading-none transition-colors"
-                title="Add channel"
-              >
-                +
-              </button>
+            {/* Channel list */}
+            <div className="space-y-0.5">
+              {channels.map((channel) => (
+                <Link
+                  key={channel.id}
+                  href={`/channel/${channel.slug}`}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                    pathname === `/channel/${channel.slug}`
+                      ? "bg-gray-800 text-white"
+                      : "text-gray-400 hover:text-white hover:bg-gray-800"
+                  }`}
+                >
+                  <span className="text-base">{channel.emoji}</span>
+                  <span className="truncate">{channel.name}</span>
+                </Link>
+              ))}
+              {channels.length === 0 && (
+                <p className="text-xs text-gray-600 px-3 py-2">No channels yet</p>
+              )}
             </div>
-
-            {/* New channel form */}
-            {showNewChannel && (
-          <form onSubmit={handleCreateChannel} className="mb-2 bg-gray-800 rounded-xl p-3 space-y-2">
-            <div className="flex gap-2 items-center">
-              <select
-                value={newChannelEmoji}
-                onChange={(e) => setNewChannelEmoji(e.target.value)}
-                className="bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-white text-sm w-16"
-              >
-                {EMOJI_OPTIONS.map((e) => (
-                  <option key={e} value={e}>{e}</option>
-                ))}
-              </select>
-              <input
-                type="text"
-                value={newChannelName}
-                onChange={(e) => setNewChannelName(e.target.value)}
-                placeholder="channel-name"
-                className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
-                autoFocus
-              />
-            </div>
-            <input
-              type="text"
-              value={newChannelDesc}
-              onChange={(e) => setNewChannelDesc(e.target.value)}
-              placeholder="Description (optional)"
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-indigo-500"
-            />
-            {channelError && <p className="text-red-400 text-xs">{channelError}</p>}
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={creatingChannel || !newChannelName.trim()}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-semibold py-1.5 rounded-lg transition-colors"
-              >
-                {creatingChannel ? "Creating..." : "Create"}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setShowNewChannel(false); setChannelError(""); }}
-                className="px-3 text-gray-400 hover:text-white text-xs transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        )}
           </>
         )}
-
-        {/* Channel list */}
-        <div className="space-y-0.5">
-          {channels.map((channel) => (
-            <Link
-              key={channel.id}
-              href={`/channel/${channel.slug}`}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                pathname === `/channel/${channel.slug}`
-                  ? "bg-gray-800 text-white"
-                  : "text-gray-400 hover:text-white hover:bg-gray-800"
-              }`}
-            >
-              <span className="text-base">{channel.emoji}</span>
-              <span className="truncate">{channel.name}</span>
-            </Link>
-          ))}
-          {channels.length === 0 && !showNewChannel && (
-            <p className="text-xs text-gray-600 px-3 py-2">No channels yet</p>
-          )}
-        </div>
       </div>
 
       {/* Direct Messages section */}
