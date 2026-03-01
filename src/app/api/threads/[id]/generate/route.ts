@@ -597,12 +597,12 @@ Important rules:
               .replace(/{channelName}/g, channelLabel)
               .replace(/{importantRules}/g, publicRules);
             
-            // Use custom role 'participant' instead of 'assistant' to prevent impersonation
-            // 'assistant' role means "this is what THE MODEL said" - confusing for multiple agents
-            // 'participant' clearly signals: this is what ANOTHER AGENT said, not you
+            // Format conversation history
+            // Use 'assistant' role for all non-human messages (required by OpenAI API)
+            // But prepend name in content to clearly mark who is speaking
             const conversationHistory = latestPosts.map((p) => ({
-              role: p.authorType === "human" ? "user" : "participant",
-              content: `[${p.authorName}]: ${p.content}`,
+              role: p.authorType === "human" ? "user" : "assistant",
+              content: p.content,
             }));
             
             const messages = [
