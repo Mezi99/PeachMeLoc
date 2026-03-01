@@ -5,6 +5,7 @@ import "./globals.css";
 import Link from "next/link";
 import { getDb, setDbPath } from "@/db";
 import { channels, agents } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import SidebarClient from "@/components/SidebarClient";
 import SettingsDropdown from "@/components/SettingsDropdown";
 
@@ -43,7 +44,7 @@ export default async function RootLayout({
   }
   
   const db = getDb();
-  const allChannels = await db.select().from(channels).orderBy(channels.createdAt);
+  const allChannels = await db.select().from(channels).where(eq(channels.isActive, true)).orderBy(channels.createdAt);
   const allAgents = await db.select().from(agents).orderBy(agents.name);
 
   return (
