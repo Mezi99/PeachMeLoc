@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, saveDb, syncForumFromCookie } from "@/db";
 import { channels } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await syncForumFromCookie(); // Sync forum based on cookie
     const db = getDb();
-    const all = await db.select().from(channels).orderBy(channels.createdAt);
+    const { searchParams } = new URL(req.url);
+    const includeInactive = searchParams.get("includeInactive") === "true";
+    
+    let query = db.select().from(channels).orderBy(channels.createdAt);
+    
+    // If not including inactive, filter to active channels only
+    if (!includeInactive) {
+      query = db.select().from(channels).where(eq(channels.isActive, true)).orderBy(channels.createdAt);
+    }
+    
+    const all = await query;
     return NextResponse.json(all);
   } catch (error) {
     console.error("GET /api/channels error:", error);

@@ -19,6 +19,7 @@ export const channels = sqliteTable("channels", {
   slug: text("slug").notNull().unique(),
   description: text("description").notNull().default(""),
   emoji: text("emoji").notNull().default("💬"),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
@@ -28,6 +29,7 @@ export const threads = sqliteTable("threads", {
   category: text("category").notNull().default("General"),
   channelId: integer("channel_id").references(() => channels.id),
   authorName: text("author_name").notNull().default("You"),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   lastActivityAt: integer("last_activity_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   replyCount: integer("reply_count").notNull().default(0),
