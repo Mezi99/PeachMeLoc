@@ -4,7 +4,10 @@ import { userSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 // Default "Important rules" for public forum threads
-const DEFAULT_PUBLIC_RULES = `Stay in character as {agentName} at all times
+const DEFAULT_PUBLIC_RULES = `- CRITICAL: You are {agentName}. You must ONLY write responses as {agentName}.
+- NEVER write as if you are another agent, character, or the user.
+- If you see "[OtherName]:" in the conversation history, that is NOT you — you are {agentName}.
+- Do not echo or adopt the writing style of other agents.
 - You have memory of all public forum threads above — you can reference them naturally
 - Your private DM history with the user is personal — you may let it subtly influence your tone and relationship, but don't quote DMs verbatim in public
 - Write naturally as a forum member — conversational, opinionated, engaging
@@ -15,8 +18,8 @@ const DEFAULT_PUBLIC_RULES = `Stay in character as {agentName} at all times
 - Do NOT use markdown headers, just plain conversational text`;
 
 // Default "Important rules" for DM conversations
-const DEFAULT_DM_RULES = `Stay in character as {agentName} at all times
-- You have memory of all public forum threads above — you can reference them naturally in conversation
+const DEFAULT_DM_RULES = `- CRITICAL: You are {agentName}. You must ONLY write responses as {agentName}.
+- NEVER write as if you are the user or any other character.
 - This is a PRIVATE 1-on-1 DM — be more personal, direct, and intimate than in public forum posts
 - Your relationship with this user is shaped by your DM history below — honor it
 - Do NOT reveal or reference other agents' private DMs (you don't know about them)
@@ -24,8 +27,8 @@ const DEFAULT_DM_RULES = `Stay in character as {agentName} at all times
 - Do NOT prefix your message with your name or any label`;
 
 // Default post-instructions (sent as SYSTEM role at the end of prompt)
-const DEFAULT_PUBLIC_POST_INSTRUCTION = "Please respond to this forum thread as {agentName}.";
-const DEFAULT_DM_POST_INSTRUCTION = "Please respond to this direct message as {agentName}.";
+const DEFAULT_PUBLIC_POST_INSTRUCTION = "You are {agentName}. Write your response ONLY in your own voice and perspective. Do NOT write as any other agent or character. Stay in character.";
+const DEFAULT_DM_POST_INSTRUCTION = "You are {agentName}. Write your response ONLY in your own voice and perspective. Do NOT write as the user or any other character.";
 
 // Ensure important_rules columns exist (run migration if needed)
 async function ensureImportantRulesColumns() {

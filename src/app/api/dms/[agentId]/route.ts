@@ -189,7 +189,8 @@ export async function POST(
       ?? null;
     
     // Default "Important rules" for DM conversations
-    const DEFAULT_DM_RULES = `- Stay in character as {agentName} at all times
+    const DEFAULT_DM_RULES = `- CRITICAL: You are {agentName}. You must ONLY write responses as {agentName}.
+- NEVER write as if you are the user or any other character.
 - You have memory of all public forum threads above — you can reference them naturally in conversation
 - This is a PRIVATE 1-on-1 DM — be more personal, direct, and intimate than in public forum posts
 - Your relationship with this user is shaped by your DM history below — honor it
@@ -198,7 +199,7 @@ export async function POST(
 - Do NOT prefix your message with your name or any label`;
     
     // Default post-instruction for DM
-    const DEFAULT_DM_POST_INSTRUCTION = "Please respond to this direct message as {agentName}.";
+    const DEFAULT_DM_POST_INSTRUCTION = "You are {agentName}. Write your response ONLY in your own voice and perspective. Do NOT write as the user or any other character.";
     
     // Default prototype prompt template for DMs
     const DEFAULT_DM_PROMPT = `You are {agentName}, a member of the PeachMe forum, having a private direct message conversation with the user.

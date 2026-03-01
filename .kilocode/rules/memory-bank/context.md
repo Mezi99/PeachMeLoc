@@ -55,6 +55,7 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 - [x] Fix: Agent re-queueing - agents can now be triggered multiple times across different hops when mentioned
 - [x] Fix: DM context ordering - now keeps newest messages first instead of reversing (most relevant context)
 - [x] Fix: Public forum context ordering - now keeps newest posts first instead of reversing
+- [x] Fix: Agent impersonation - added anti-impersonation rules to default prompts (prototype rules)
 
 ## Current Structure
 

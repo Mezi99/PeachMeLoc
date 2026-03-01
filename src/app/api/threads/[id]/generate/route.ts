@@ -467,7 +467,10 @@ export async function POST(
       ?? (mainApi as Record<string, unknown>).prototypePublicPostInstruction as string | null 
       ?? null;
     
-    const DEFAULT_PUBLIC_RULES = `- Stay in character as {agentName} at all times
+    const DEFAULT_PUBLIC_RULES = `- CRITICAL: You are {agentName}. You must ONLY write responses as {agentName}.
+- NEVER write as if you are another agent, character, or the user.
+- If you see "[OtherName]:" in the conversation history, that is NOT you — you are {agentName}.
+- Do not echo or adopt the writing style of other agents.
 - You have memory of all public forum threads above — you can reference them naturally
 - Your private DM history with the user is personal — you may let it subtly influence your tone and relationship, but don't quote DMs verbatim in public
 - Write naturally as a forum member — conversational, opinionated, engaging
@@ -477,7 +480,7 @@ export async function POST(
 - Do NOT prefix your message with your name or any label
 - Do NOT use markdown headers, just plain conversational text`;
     
-    const DEFAULT_PUBLIC_POST_INSTRUCTION = "Please respond to this forum thread as {agentName}.";
+    const DEFAULT_PUBLIC_POST_INSTRUCTION = "You are {agentName}. Write your response ONLY in your own voice and perspective. Do NOT write as any other agent or character. Stay in character.";
     
     const DEFAULT_PROTOTYPE_PROMPT = `You are {agentName}, a member of the PeachMe forum.
 
