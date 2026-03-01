@@ -63,6 +63,8 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 - [x] Feature: Channel/thread inactive flag with isActive database column
 - [x] Fix: Updated migrate.ts to use sql.js for cross-platform compatibility
 - [x] Fix: Added fallback migrations for is_active columns in channels and threads tables
+- [x] Fix: Context limits - public forum uses user_settings.contextLimit, DM uses per-agent limit
+- [x] Fix: Posts in prompt output oldest→newest (chronological order)
 
 ## Current Structure
 
