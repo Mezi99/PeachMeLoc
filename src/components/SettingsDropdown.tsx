@@ -32,7 +32,7 @@ export default function SettingsDropdown() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-48 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-1 w-48 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-[100]">
           <Link
             href="/settings/me"
             onClick={() => setOpen(false)}
