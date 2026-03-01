@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface Channel {
   id: number;
@@ -32,6 +32,12 @@ export default function SidebarClient({ activeForum, channels: initialChannels, 
   const pathname = usePathname();
   const router = useRouter();
   const [channels, setChannels] = useState<Channel[]>(initialChannels);
+  
+  // Update channels when initialChannels changes (e.g., after router.refresh())
+  useEffect(() => {
+    setChannels(initialChannels);
+  }, [initialChannels]);
+  
   const [showNewChannel, setShowNewChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
   const [newChannelDesc, setNewChannelDesc] = useState("");
