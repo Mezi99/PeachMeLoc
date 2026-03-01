@@ -112,7 +112,7 @@ async function buildPublicForumContext(db: Awaited<ReturnType<typeof getDb>>, li
     byThread.get(p.threadId)!.posts.push(p);
   }
 
-  const lines: string[] = ["== Public Forum — Recent Activity (shared knowledge) =="];
+  const lines: string[] = ["<Your_Public_Activity>\n\n== Public Forum — Recent Activity (shared knowledge) =="];
   // Don't reverse - keep newest posts first (most relevant context)
   for (const [, thread] of byThread) {
     lines.push(`\nThread: "${thread.title}" [${thread.category}] in ${thread.channelLabel}`);
@@ -122,6 +122,7 @@ async function buildPublicForumContext(db: Awaited<ReturnType<typeof getDb>>, li
       );
     }
   }
+  lines.push("\n</Your_Public_Activity>");
 
   return lines.join("\n");
 }
@@ -204,11 +205,15 @@ export async function POST(
     // Default prototype prompt template for DMs
     const DEFAULT_DM_PROMPT = `You are {agentName}, a member of the PeachMe forum, having a private direct message conversation with the user.
 
+<Your_persona>
 Your persona:
-{agentPersona}{contextBlock}
+{agentPersona}
+</Your_persona>{contextBlock}
 
+<RULES>
 Important rules:
-{dmRules}`;
+{dmRules}
+</RULES>`;
 
     // Resolve effective LLM config (agent-specific or fallback to Main API)
     const effectiveBaseUrl = agent.llmApiKey.trim() ? agent.llmBaseUrl : mainApi.mainApiBaseUrl;
@@ -238,7 +243,7 @@ Important rules:
 
     // Compose system prompt with layered context
     const contextBlock = publicContext
-      ? `\n\n${publicContext}\n\n== End of Public Context ==`
+      ? `<CONTEXT>\n\n${publicContext}\n\n</CONTEXT>`
       : "";
 
     // Build prompt with stored important rules

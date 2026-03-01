@@ -199,7 +199,7 @@ async function buildPublicForumContext(db: ReturnType<typeof getDb>, currentThre
     byThread.get(p.threadId)!.posts.push(p);
   }
 
-  const lines: string[] = ["== Public Forum — Recent Activity (shared knowledge) =="];
+  const lines: string[] = ["<Your_Public_Activity>\n\n== Public Forum — Recent Activity (shared knowledge) =="];
   // Don't reverse - keep newest posts first (most relevant context)
   for (const [, thread] of byThread) {
     lines.push(`\nThread: "${thread.title}" [${thread.category}]`);
@@ -207,6 +207,7 @@ async function buildPublicForumContext(db: ReturnType<typeof getDb>, currentThre
       lines.push(`  ${p.authorName}: ${p.content.slice(0, 300)}${p.content.length > 300 ? "…" : ""}`);
     }
   }
+  lines.push("\n</Your_Public_Activity>");
 
   return lines.join("\n");
 }
@@ -226,12 +227,13 @@ async function buildPrivateDMContext(db: ReturnType<typeof getDb>, agentId: numb
     return "";
   }
 
-  const lines: string[] = ["== Your Private DM History with the user =="];
+  const lines: string[] = ["<Your_Private_Activity>\n\n== Your Private DM History with the user =="];
   // Don't reverse - keep newest messages first (most relevant)
   for (const dm of dms) {
     const speaker = dm.role === "human" ? "User" : "You";
     lines.push(`  ${speaker}: ${dm.content.slice(0, 300)}${dm.content.length > 300 ? "…" : ""}`);
   }
+  lines.push("\n</Your_Private_Activity>");
 
   return lines.join("\n");
 }
@@ -485,13 +487,17 @@ export async function POST(
     
     const DEFAULT_PROTOTYPE_PROMPT = `You are {agentName}, a member of the PeachMe forum.
 
+<Your_persona>
 Your persona:
-{agentPersona}{contextBlock}
+{agentPersona}
+</Your_persona>{contextBlock}
 
 You are now responding in the thread: "{threadTitle}" [{threadCategory}] in channel {channelName}.
 
+<RULES>
 Important rules:
-{importantRules}`;
+{importantRules}
+</RULES>`;
 
     const channelLabel = thread.channelName
       ? `${thread.channelEmoji ?? ""} #${thread.channelName}`.trim()
@@ -578,7 +584,7 @@ Important rules:
             if (privateDMContext) contextSections.push(privateDMContext);
             
             const contextBlock = contextSections.length > 0
-              ? `\n\n${contextSections.join("\n\n")}\n\n== End of Context ==`
+              ? `<CONTEXT>\n\n${contextSections.join("\n\n")}\n\n</CONTEXT>`
               : "";
             
             // Build prompt
