@@ -7,6 +7,7 @@ const tabs = [
   { href: "/settings/me", label: "👤 My Settings" },
   { href: "/settings/prompt", label: "📋 System Prompts" },
   { href: "/settings/agents", label: "🤖 Manage Agents" },
+  { href: "/settings/channels", label: "💬 Manage Channels" },
   { href: "/settings/forums", label: "💾 Saved Forums" },
 ];
 

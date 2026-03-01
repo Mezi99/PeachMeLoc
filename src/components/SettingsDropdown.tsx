@@ -57,6 +57,14 @@ export default function SettingsDropdown() {
             <span>🤖</span>
             <span>Manage Agents</span>
           </Link>
+          <Link
+            href="/settings/channels"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
+          >
+            <span>💬</span>
+            <span>Manage Channels</span>
+          </Link>
           <div className="border-t border-gray-700" />
           <Link
             href="/settings/forums"
