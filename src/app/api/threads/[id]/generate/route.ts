@@ -629,14 +629,13 @@ Important rules:
             let agentPost: typeof posts.$inferSelect | null = null;
             let responseContent = "";
             
-            // Solution 4: Post-generation validation - check for impersonation and fix
+            // Check for impersonation and truncate/regenerate as needed
             const otherAgentNames = allActiveAgents
               .filter(a => a.id !== agent.id)
               .map(a => a.name.toLowerCase());
             
             const IMPERSONATION_WARNING = "\\n\\n⚠️ CRITICAL REMINDER: You are {agentName}. Write ONLY as yourself. Do NOT write as any other agent. If you see brackets with another name like [OtherName], do NOT continue from there.";
             
-            // Check for impersonation and truncate/regenerate as needed
             function handleImpersonation(content: string, attempt: number): string {
               const contentLower = content.toLowerCase();
               
@@ -669,6 +668,11 @@ Important rules:
               
               // No impersonation found - return original content
               return content;
+            }
+            
+            // Safety: Strip any XML tags from response before saving (in case LLM includes them)
+            function stripXmlTags(content: string): string {
+              return content.replace(/<[^>]+>/g, '').trim();
             }
             
             try {
@@ -704,7 +708,7 @@ Important rules:
                 .insert(posts)
                 .values({
                   threadId,
-                  content: responseContent,
+                  content: stripXmlTags(responseContent),
                   authorType: "agent",
                   authorName: agent.name,
                   authorAvatar: agent.avatar,
