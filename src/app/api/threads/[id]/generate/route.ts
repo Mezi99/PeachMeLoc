@@ -597,20 +597,13 @@ Important rules:
               .replace(/{channelName}/g, channelLabel)
               .replace(/{importantRules}/g, publicRules);
             
-            // Solution 2: Differentiate human vs agent messages to prevent impersonation
-            // Agents see other agents as "Other participants" to avoid identity confusion
-            const conversationHistory = latestPosts.map((p) => {
-              if (p.authorType === "human") {
-                // Show human posts normally
-                return { role: "user" as const, content: p.content };
-              } else if (p.agentId === agent.id) {
-                // This is the current agent's own previous response - show it
-                return { role: "assistant" as const, content: p.content };
-              } else {
-                // Other agents - hide their names to prevent impersonation confusion
-                return { role: "assistant" as const, content: "[Other participants have responded in this thread]" };
-              }
-            });
+            // Use custom role 'participant' instead of 'assistant' to prevent impersonation
+            // 'assistant' role means "this is what THE MODEL said" - confusing for multiple agents
+            // 'participant' clearly signals: this is what ANOTHER AGENT said, not you
+            const conversationHistory = latestPosts.map((p) => ({
+              role: p.authorType === "human" ? "user" : "participant",
+              content: `[${p.authorName}]: ${p.content}`,
+            }));
             
             const messages = [
               { role: "system", content: systemPrompt },
