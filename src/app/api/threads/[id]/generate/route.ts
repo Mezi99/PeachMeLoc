@@ -469,7 +469,8 @@ export async function POST(
     
     const DEFAULT_PUBLIC_RULES = `- CRITICAL: You are {agentName}. You must ONLY write responses as {agentName}.
 - NEVER write as if you are another agent, character, or the user.
-- If you see "[OtherName]:" in the conversation history, that is NOT you — you are {agentName}.
+- Conversation history uses <assistant_turn sender="Name"> tags - this shows what OTHER agents said, NOT you.
+- When you see <assistant_turn sender="OtherAgent"> that is OtherAgent speaking, not you.
 - Do not echo or adopt the writing style of other agents.
 - You have memory of all public forum threads above — you can reference them naturally
 - Your private DM history with the user is personal — you may let it subtly influence your tone and relationship, but don't quote DMs verbatim in public
@@ -597,13 +598,23 @@ Important rules:
               .replace(/{channelName}/g, channelLabel)
               .replace(/{importantRules}/g, publicRules);
             
-            // Format conversation history
-            // Use 'assistant' role for all non-human messages (required by OpenAI API)
-            // But prepend name in content to clearly mark who is speaking
-            const conversationHistory = latestPosts.map((p) => ({
-              role: p.authorType === "human" ? "user" : "assistant",
-              content: p.content,
-            }));
+            // Format conversation history with XML-like tags for clarity
+            // This format makes it crystal clear who is speaking:
+            // <user_turn sender="Name">content</user_turn>
+            // <assistant_turn sender="Name">content</assistant_turn>
+            const conversationHistory = latestPosts.map((p) => {
+              if (p.authorType === "human") {
+                return {
+                  role: "user" as const,
+                  content: `<user_turn sender="${p.authorName}">${p.content}</user_turn>`
+                };
+              } else {
+                return {
+                  role: "assistant" as const,
+                  content: `<assistant_turn sender="${p.authorName}">${p.content}</assistant_turn>`
+                };
+              }
+            });
             
             const messages = [
               { role: "system", content: systemPrompt },
