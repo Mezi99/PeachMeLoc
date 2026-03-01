@@ -45,7 +45,8 @@ function runMigrationsOnDb(dbPath: string) {
     "0005_hop_counter.sql",
     "0006_system_prompt.sql",
     "0007_important_rules.sql",
-    "0008_agent_context_limit.sql"
+    "0008_agent_context_limit.sql",
+    "0010_channel_inactive_flag.sql"
   ];
 
   for (const file of migrationFiles) {
@@ -176,6 +177,24 @@ function runFallbackMigrations(client: Database.Database) {
         )
       `);
       client.exec("CREATE INDEX IF NOT EXISTS idx_thread_summaries_thread_agent ON thread_summaries(thread_id, agent_id)");
+    }
+
+    // Check if channels table has is_active column
+    const channelsTableInfo = client.prepare("PRAGMA table_info(channels)").all() as { name: string }[];
+    const hasChannelsIsActive = channelsTableInfo.some((col) => col.name === "is_active");
+    if (!hasChannelsIsActive) {
+      console.log("Adding is_active column to channels (fallback migration)...");
+      client.exec("ALTER TABLE channels ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1;");
+      client.exec("CREATE INDEX IF NOT EXISTS idx_channels_active ON channels(is_active)");
+    }
+
+    // Check if threads table has is_active column
+    const threadsTableInfo = client.prepare("PRAGMA table_info(threads)").all() as { name: string }[];
+    const hasThreadsIsActive = threadsTableInfo.some((col) => col.name === "is_active");
+    if (!hasThreadsIsActive) {
+      console.log("Adding is_active column to threads (fallback migration)...");
+      client.exec("ALTER TABLE threads ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1;");
+      client.exec("CREATE INDEX IF NOT EXISTS idx_threads_active ON threads(is_active)");
     }
   } catch (e) {
     console.error("Fallback migration error:", e);

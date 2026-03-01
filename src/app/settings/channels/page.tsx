@@ -50,9 +50,9 @@ export default async function ManageChannelsPage() {
   );
 }
 
-function ChannelManager({ initialChannels }: { initialChannels: ChannelWithStats[] }) {
+export default function ChannelsPage({ initialChannels }: { initialChannels: ChannelWithStats[] }) {
   return (
-    <ChannelManagerClient channels={initialChannels} />
+    <ChannelsManagerClient channels={initialChannels} />
   );
 }
 
@@ -72,7 +72,7 @@ interface Channel {
   threadCount: number;
 }
 
-export default function ChannelManagerClient({ channels: initialChannels }: { channels: Channel[] }) {
+function ChannelsManagerClient({ channels: initialChannels }: { channels: Channel[] }) {
   const router = useRouter();
   const [channels, setChannels] = useState<Channel[]>(initialChannels);
   const [showInactive, setShowInactive] = useState(false);

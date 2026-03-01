@@ -634,9 +634,10 @@ Important rules:
               .filter(a => a.id !== agent.id)
               .map(a => a.name.toLowerCase());
             
+            const agentName = agent.name;
             const IMPERSONATION_WARNING = "\\n\\n⚠️ CRITICAL REMINDER: You are {agentName}. Write ONLY as yourself. Do NOT write as any other agent. If you see brackets with another name like [OtherName], do NOT continue from there.";
             
-            function handleImpersonation(content: string, attempt: number): string {
+            function handleImpersonation(content: string, attempt: number): string | null {
               const contentLower = content.toLowerCase();
               
               for (const name of otherAgentNames) {
@@ -651,7 +652,7 @@ Important rules:
                   if (truncated.length < 3) {
                     // Too short - regenerate with warning
                     if (attempt < 2) {
-                      console.log(`[Hop ${currentHop}] Impersonation in '${agent.name}' response (attempt ${attempt + 1}): found [${name}], regenerating...`);
+                      console.log(`[Hop ${currentHop}] Impersonation in '${agentName}' response (attempt ${attempt + 1}): found [${name}], regenerating...`);
                       return null; // Signal to retry
                     } else {
                       // Max attempts reached - discard this response
@@ -660,7 +661,7 @@ Important rules:
                     }
                   } else {
                     // Good content before impersonation - keep it
-                    console.log(`[Hop ${currentHop}] Truncated impersonation in '${agent.name}' response: kept ${truncated.length} chars before [${name}]`);
+                    console.log(`[Hop ${currentHop}] Truncated impersonation in '${agentName}' response: kept ${truncated.length} chars before [${name}]`);
                     return truncated;
                   }
                 }

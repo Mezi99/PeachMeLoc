@@ -10,14 +10,12 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const includeInactive = searchParams.get("includeInactive") === "true";
     
-    let query = db.select().from(channels).orderBy(channels.createdAt);
-    
-    // If not including inactive, filter to active channels only
-    if (!includeInactive) {
-      query = db.select().from(channels).where(eq(channels.isActive, true)).orderBy(channels.createdAt);
+    let all;
+    if (includeInactive) {
+      all = await db.select().from(channels).orderBy(channels.createdAt);
+    } else {
+      all = await db.select().from(channels).where(eq(channels.isActive, true)).orderBy(channels.createdAt);
     }
-    
-    const all = await query;
     return NextResponse.json(all);
   } catch (error) {
     console.error("GET /api/channels error:", error);
