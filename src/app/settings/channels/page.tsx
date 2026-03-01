@@ -15,7 +15,7 @@ interface ChannelWithStats {
   threadCount: number;
 }
 
-export default async function ManageChannelsPage() {
+export default async function ChannelsPage() {
   const db = getDb();
   const allChannels = await db.select().from(channels).orderBy(channels.createdAt);
   
@@ -36,23 +36,7 @@ export default async function ManageChannelsPage() {
   );
 
   return (
-    <div>
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold text-white">Forum Channels</h2>
-        <p className="text-gray-400 text-sm mt-1">
-          Manage channels for organizing forum threads. You can delete channels (which removes all threads and posts)
-          or mark channels as inactive (which keeps the data but excludes them from AI context).
-        </p>
-      </div>
-      
-      <ChannelManager initialChannels={channelsWithStats} />
-    </div>
-  );
-}
-
-export default function ChannelsPage({ initialChannels }: { initialChannels: ChannelWithStats[] }) {
-  return (
-    <ChannelsManagerClient channels={initialChannels} />
+    <ChannelsManagerClient channels={channelsWithStats} />
   );
 }
 
@@ -138,91 +122,101 @@ function ChannelsManagerClient({ channels: initialChannels }: { channels: Channe
   };
 
   return (
-    <div className="space-y-4">
-      {/* Toggle show inactive */}
-      <div className="flex items-center gap-3">
-        <label className="flex items-center gap-2 text-sm text-gray-400">
-          <input
-            type="checkbox"
-            checked={showInactive}
-            onChange={(e) => setShowInactive(e.target.checked)}
-            className="rounded bg-gray-700 border-gray-600"
-          />
-          Show inactive channels
-        </label>
-        <span className="text-xs text-gray-500">
-          ({channels.filter(c => !c.isActive).length} inactive)
-        </span>
+    <div>
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold text-white">Forum Channels</h2>
+        <p className="text-gray-400 text-sm mt-1">
+          Manage channels for organizing forum threads. You can delete channels (which removes all threads and posts)
+          or mark channels as inactive (which keeps the data but excludes them from AI context).
+        </p>
       </div>
       
-      {error && (
-        <div className="bg-red-900/30 border border-red-800 rounded-lg px-4 py-2 text-red-400 text-sm">
-          {error}
+      <div className="space-y-4">
+        {/* Toggle show inactive */}
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-gray-400">
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+              className="rounded bg-gray-700 border-gray-600"
+            />
+            Show inactive channels
+          </label>
+          <span className="text-xs text-gray-500">
+            ({channels.filter(c => !c.isActive).length} inactive)
+          </span>
         </div>
-      )}
-      
-      {/* Channel list */}
-      <div className="space-y-2">
-        {displayedChannels.map((channel) => (
-          <div
-            key={channel.id}
-            className={`flex items-center justify-between p-4 rounded-lg border ${
-              channel.isActive 
-                ? "bg-gray-800 border-gray-700" 
-                : "bg-gray-900 border-gray-800 opacity-60"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">{channel.emoji}</span>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-white">{channel.name}</span>
-                  {!channel.isActive && (
-                    <span className="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded">
-                      Inactive
-                    </span>
-                  )}
-                </div>
-                {channel.description && (
-                  <p className="text-sm text-gray-500">{channel.description}</p>
-                )}
-                <p className="text-xs text-gray-600 mt-1">
-                  {channel.threadCount} threads • /channel/{channel.slug}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              {/* Toggle active button */}
-              <button
-                onClick={() => handleToggleActive(channel)}
-                disabled={loading}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  channel.isActive
-                    ? "bg-gray-700 hover:bg-gray-600 text-white"
-                    : "bg-green-900/50 hover:bg-green-900 text-green-400"
-                } disabled:opacity-50`}
-              >
-                {channel.isActive ? "Deactivate" : "Activate"}
-              </button>
-              
-              {/* Delete button */}
-              <button
-                onClick={() => handleDelete(channel)}
-                disabled={deletingId === channel.id}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-900/50 hover:bg-red-900 text-red-400 transition-colors disabled:opacity-50"
-              >
-                {deletingId === channel.id ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        ))}
         
-        {displayedChannels.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            No channels yet. Create one from the sidebar!
+        {error && (
+          <div className="bg-red-900/30 border border-red-800 rounded-lg px-4 py-2 text-red-400 text-sm">
+            {error}
           </div>
         )}
+        
+        {/* Channel list */}
+        <div className="space-y-2">
+          {displayedChannels.map((channel) => (
+            <div
+              key={channel.id}
+              className={`flex items-center justify-between p-4 rounded-lg border ${
+                channel.isActive 
+                  ? "bg-gray-800 border-gray-700" 
+                  : "bg-gray-900 border-gray-800 opacity-60"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{channel.emoji}</span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-white">{channel.name}</span>
+                    {!channel.isActive && (
+                      <span className="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded">
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+                  {channel.description && (
+                    <p className="text-sm text-gray-500">{channel.description}</p>
+                  )}
+                  <p className="text-xs text-gray-600 mt-1">
+                    {channel.threadCount} threads • /channel/{channel.slug}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {/* Toggle active button */}
+                <button
+                  onClick={() => handleToggleActive(channel)}
+                  disabled={loading}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    channel.isActive
+                      ? "bg-gray-700 hover:bg-gray-600 text-white"
+                      : "bg-green-900/50 hover:bg-green-900 text-green-400"
+                  } disabled:opacity-50`}
+                >
+                  {channel.isActive ? "Deactivate" : "Activate"}
+                </button>
+                
+                {/* Delete button */}
+                <button
+                  onClick={() => handleDelete(channel)}
+                  disabled={deletingId === channel.id}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-900/50 hover:bg-red-900 text-red-400 transition-colors disabled:opacity-50"
+                >
+                  {deletingId === channel.id ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            </div>
+          ))}
+          
+          {displayedChannels.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              No channels yet. Create one from the sidebar!
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
