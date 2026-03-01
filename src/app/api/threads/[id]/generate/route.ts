@@ -204,7 +204,11 @@ async function buildPublicForumContext(db: ReturnType<typeof getDb>, currentThre
   for (const [, thread] of byThread) {
     lines.push(`\nThread: "${thread.title}" [${thread.category}]`);
     for (const p of thread.posts) {
-      lines.push(`  ${p.authorName}: ${p.content.slice(0, 300)}${p.content.length > 300 ? "…" : ""}`);
+      const turnTag = p.authorType === "human" 
+        ? `<user_turn sender="${p.authorName}">` 
+        : `<assistant_turn sender="${p.authorName}">`;
+      const content = `${turnTag}${p.content.slice(0, 300)}${p.content.length > 300 ? "…" : ""}</assistant_turn>`;
+      lines.push(`  ${content}`);
     }
   }
   lines.push("\n</Your_Public_Activity>");
