@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import EmojiPicker from "./EmojiPicker";
 
 interface DMMessage {
   id: number;
@@ -89,6 +90,25 @@ export default function DMView({ agentId, agentName, agentAvatar, initialMessage
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Handle emoji selection - insert at cursor position
+  const handleEmojiSelect = (emoji: string) => {
+    const textarea = inputTextareaRef.current;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newValue = input.slice(0, start) + emoji + input.slice(end);
+      setInput(newValue);
+      // Set cursor position after the inserted emoji
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+        textarea.focus();
+      }, 0);
+    } else {
+      setInput((prev) => prev + emoji);
+    }
+  };
 
   // Edit state
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
@@ -323,6 +343,7 @@ export default function DMView({ agentId, agentName, agentAvatar, initialMessage
             👤
           </div>
           <textarea
+            ref={inputTextareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={`Message ${agentName}...`}
@@ -336,6 +357,7 @@ export default function DMView({ agentId, agentName, agentAvatar, initialMessage
               }
             }}
           />
+          <EmojiPicker onEmojiSelect={handleEmojiSelect} />
           <button
             type="submit"
             disabled={sending || !input.trim()}

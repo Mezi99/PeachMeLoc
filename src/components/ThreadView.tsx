@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import EmojiPicker from "./EmojiPicker";
 
 interface Post {
   id: number;
@@ -115,6 +116,25 @@ export default function ThreadView({ threadId, initialPosts, activeAgents = [] }
   const [currentAgent, setCurrentAgent] = useState<{ name: string; avatar: string } | null>(null);
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Handle emoji selection - insert at cursor position
+  const handleEmojiSelect = (emoji: string) => {
+    const textarea = replyTextareaRef.current;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newValue = replyContent.slice(0, start) + emoji + replyContent.slice(end);
+      setReplyContent(newValue);
+      // Set cursor position after the inserted emoji
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+        textarea.focus();
+      }, 0);
+    } else {
+      setReplyContent((prev) => prev + emoji);
+    }
+  };
   
   // Edit state
   const [editingPostId, setEditingPostId] = useState<number | null>(null);
@@ -462,6 +482,7 @@ export default function ThreadView({ threadId, initialPosts, activeAgents = [] }
               👤
             </div>
             <textarea
+              ref={replyTextareaRef}
               value={replyContent}
               onChange={(e) => setReplyContent(e.target.value)}
               placeholder="Write a reply... (AI agents will respond)"
@@ -475,6 +496,7 @@ export default function ThreadView({ threadId, initialPosts, activeAgents = [] }
                 }
               }}
             />
+            <EmojiPicker onEmojiSelect={handleEmojiSelect} />
             <button
               type="submit"
               disabled={submitting || generating || !replyContent.trim()}
