@@ -618,6 +618,40 @@ Important rules:
             let agentPost: typeof posts.$inferSelect | null = null;
             let responseContent = "";
             
+            // Solution 4: Post-generation validation - check for impersonation and retry
+            const otherAgentNames = allActiveAgents
+              .filter(a => a.id !== agent.id)
+              .map(a => a.name.toLowerCase());
+            
+            const IMPERSONATION_WARNING = "\\n\\n⚠️ CRITICAL REMINDER: You are {agentName}. Do NOT write as any other agent. If you catch yourself writing as someone else, stop and rewrite as yourself.";
+            
+            function containsImpersonation(content: string): string | null {
+              const contentLower = content.toLowerCase();
+              for (const name of otherAgentNames) {
+                // Check if content starts with or contains other agent names prominently
+                if (contentLower.startsWith(name) || 
+                    contentLower.includes(` ${name} `) ||
+                    contentLower.includes(`\"${name}\"`) ||
+                    contentLower.includes(`'${name}'`)) {
+                  return name;
+                }
+              }
+              return null;
+            }
+            
+            // Helper to regenerate with stronger warning
+            async function regenerateWithWarning(warningMessage: string): Promise<string> {
+              const retryMessages = [
+                ...messages,
+                { role: "system" as const, content: warningMessage }
+              ];
+              return callLLM(effectiveBaseUrl, effectiveApiKey, effectiveModel, retryMessages);
+            }
+            
+            const MAX_RETRIES = 2;
+            let retryCount = 0;
+            let impersonationDetected = false;
+            
             try {
               responseContent = await callLLM(
                 effectiveBaseUrl,
@@ -625,6 +659,25 @@ Important rules:
                 effectiveModel,
                 messages
               );
+              
+              // Check for impersonation in response
+              const impersonator = containsImpersonation(responseContent);
+              if (impersonator) {
+                console.log(`[Hop ${currentHop}] Impersonation detected: ${agent.name} wrote as ${impersonator}, retrying...`);
+                impersonationDetected = true;
+                
+                // Retry with stronger warning
+                const warning = IMPERSONATION_WARNING.replace(/{agentName}/g, agent.name);
+                responseContent = await regenerateWithWarning(warning);
+                retryCount++;
+                
+                // Second check after retry
+                const impersonator2 = containsImpersonation(responseContent);
+                if (impersonator2) {
+                  console.log(`[Hop ${currentHop}] Impersonation still detected on retry, giving up`);
+                  // Keep the response but log the issue
+                }
+              }
               
               const [newPost] = await db
                 .insert(posts)
