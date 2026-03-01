@@ -58,6 +58,11 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 - [x] Fix: Agent impersonation - added anti-impersonation rules to default prompts (prototype rules)
 - [x] Fix: Agent impersonation - added anti-impersonation rules to default prompts (prototype rules)
 - [x] Fix: Agent impersonation - post-generation validation with retry on detection
+- [x] Feature: Expandable channels in sidebar (toggle with ▾/▸)
+- [x] Feature: Channel management page at /settings/channels
+- [x] Feature: Channel/thread inactive flag with isActive database column
+- [x] Fix: Updated migrate.ts to use sql.js for cross-platform compatibility
+- [x] Fix: Added fallback migrations for is_active columns in channels and threads tables
 
 ## Current Structure
 
@@ -73,6 +78,7 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 | `src/app/settings/me/page.tsx` | My Settings page (nickname + Main API) | ✅ Ready |
 | `src/app/settings/agents/page.tsx` | Manage Agents page | ✅ Ready |
 | `src/app/settings/forums/page.tsx` | Saved Forums page (multi-instance) | ✅ Ready |
+| `src/app/settings/channels/page.tsx` | Channel management page | ✅ Ready |
 | `src/app/api/agents/route.ts` | Agents CRUD API | ✅ Ready |
 | `src/app/api/agents/[id]/route.ts` | Single agent API | ✅ Ready |
 | `src/app/api/channels/route.ts` | Channels CRUD API | ✅ Ready |
@@ -98,8 +104,8 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 ## Database Schema
 
 - **agents**: id, name, avatar (emoji), personaPrompt, llmBaseUrl, llmApiKey, llmModel, isActive, contextLimit, createdAt
-- **channels**: id, name, slug, description, emoji, createdAt
-- **threads**: id, title, category, channelId (nullable FK), authorName, createdAt, lastActivityAt, replyCount
+- **channels**: id, name, slug, description, emoji, isActive, createdAt
+- **threads**: id, title, category, channelId (nullable FK), authorName, createdAt, lastActivityAt, replyCount, isActive
 - **posts**: id, threadId, content, authorType (human/agent), authorName, authorAvatar, agentId, createdAt
 - **direct_messages**: id, agentId, role (human/agent), content, createdAt
 - **user_settings**: id (singleton=1), nickname, mainApiBaseUrl, mainApiKey, mainApiModel, updatedAt
@@ -133,3 +139,4 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 | 2026-02-28 | Fixed prompt structure: use user nickname in chat history, move post-instruction to end |
 | 2026-02-28 | Added configurable context limits per agent (controls max posts from other threads in context) |
 | 2026-02-28 | Fixed context ordering bug - DM and public forum context now keep newest messages first (most relevant) |
+| 2026-03-01 | Added expandable channels in sidebar, channel management page, and isActive flag for channels/threads |
