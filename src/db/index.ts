@@ -207,6 +207,14 @@ function runFallbackMigrations(client: Database.Database) {
       client.exec("ALTER TABLE user_settings ADD COLUMN context_limit INTEGER NOT NULL DEFAULT 20;");
     }
 
+    // Check if posts table has llm_model column
+    const postsTableInfo = client.prepare("PRAGMA table_info(posts)").all() as { name: string }[];
+    const hasPostsLlmModel = postsTableInfo.some((col) => col.name === "llm_model");
+    if (!hasPostsLlmModel) {
+      console.log("Adding llm_model column to posts (fallback migration)...");
+      client.exec("ALTER TABLE posts ADD COLUMN llm_model TEXT;");
+    }
+
     // Add performance indexes (if they don't exist)
     console.log("Adding performance indexes...");
     client.exec("CREATE INDEX IF NOT EXISTS idx_posts_thread_id ON posts(thread_id)");
