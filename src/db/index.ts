@@ -48,7 +48,8 @@ function runMigrationsOnDb(dbPath: string) {
     "0008_agent_context_limit.sql",
     "0010_channel_inactive_flag.sql",
     "0011_user_settings_context_limit.sql",
-    "0012_performance_indexes.sql"
+    "0012_performance_indexes.sql",
+    "0013_posts_llm_model.sql"
   ];
 
   for (const file of migrationFiles) {

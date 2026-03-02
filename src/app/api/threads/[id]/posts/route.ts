@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, saveDb, syncForumFromCookie } from "@/db";
-import { posts, threads, agents, userSettings } from "@/db/schema";
+import { posts, threads, userSettings } from "@/db/schema";
 import { eq, asc, sql } from "drizzle-orm";
 
 // Extract @mentions from content and return mentioned agent names
@@ -22,11 +22,14 @@ export async function GET(
     await syncForumFromCookie(); // Sync forum based on cookie
     const db = getDb();
     const { id } = await params;
+    
+    // Posts now include llmModel directly when created - no JOIN needed
     const threadPosts = await db
       .select()
       .from(posts)
       .where(eq(posts.threadId, parseInt(id)))
       .orderBy(asc(posts.createdAt));
+    
     return NextResponse.json(threadPosts);
   } catch (error) {
     console.error("GET /api/threads/[id]/posts error:", error);

@@ -8,6 +8,8 @@ import { channels, agents } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import SidebarClient from "@/components/SidebarClient";
 import SettingsDropdown from "@/components/SettingsDropdown";
+import HeaderBreadcrumb from "@/components/HeaderBreadcrumb";
+import { BreadcrumbProvider } from "@/components/BreadcrumbContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -54,6 +56,7 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-950 text-gray-100 min-h-screen`}
       >
+        <BreadcrumbProvider>
         {/* Top bar */}
         <header className="border-b border-gray-800 bg-gray-900 sticky top-0 z-50 h-14 flex items-center">
           <div className="w-60 shrink-0 px-4 flex items-center gap-2 border-r border-gray-800 h-full">
@@ -62,7 +65,8 @@ export default async function RootLayout({
               <span>PeachMeEngine</span>
             </Link>
           </div>
-          <div className="flex-1 px-6 flex items-center justify-end gap-4">
+          <div className="flex-1 px-6 flex items-center justify-between">
+            <HeaderBreadcrumb forumName={activeForumName} />
             <SettingsDropdown />
           </div>
         </header>
@@ -88,6 +92,7 @@ export default async function RootLayout({
             {children}
           </main>
         </div>
+        </BreadcrumbProvider>
       </body>
     </html>
   );

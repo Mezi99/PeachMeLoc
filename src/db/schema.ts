@@ -44,6 +44,7 @@ export const posts = sqliteTable("posts", {
   authorAvatar: text("author_avatar").notNull().default("👤"),
   agentId: integer("agent_id").references(() => agents.id),
   llmPrompt: text("llm_prompt"), // JSON string of messages sent to LLM (for agents only)
+  llmModel: text("llm_model"), // The LLM model used for this agent response
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 

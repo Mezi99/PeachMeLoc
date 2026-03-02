@@ -16,6 +16,7 @@ interface DMViewProps {
   agentId: number;
   agentName: string;
   agentAvatar: string;
+  agentModel?: string;
   initialMessages: DMMessage[];
 }
 
@@ -84,7 +85,7 @@ function PromptButton({ prompt }: { prompt: string }) {
   );
 }
 
-export default function DMView({ agentId, agentName, agentAvatar, initialMessages }: DMViewProps) {
+export default function DMView({ agentId, agentName, agentAvatar, agentModel, initialMessages }: DMViewProps) {
   const [messages, setMessages] = useState<DMMessage[]>(initialMessages);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -245,6 +246,17 @@ export default function DMView({ agentId, agentName, agentAvatar, initialMessage
                 <div className={`flex items-center gap-2 mb-1 ${isHuman ? "flex-row-reverse" : ""}`}>
                   <span className={`text-xs font-semibold ${isHuman ? "text-indigo-300" : "text-gray-400"}`}>
                     {isHuman ? "You" : agentName}
+                    {!isHuman && agentModel && (
+                      <span 
+                        className="ml-1 text-gray-600 cursor-help group relative inline"
+                        title={agentModel}
+                      >
+                        <span className="text-gray-700">[</span>AI<span className="text-gray-700">]</span>
+                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-700 text-xs text-gray-300 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                          {agentModel}
+                        </span>
+                      </span>
+                    )}
                   </span>
                   <span className="text-xs text-gray-600">{formatTime(msg.createdAt)}</span>
                   {/* Action buttons - inside bubble header, aligned right */}

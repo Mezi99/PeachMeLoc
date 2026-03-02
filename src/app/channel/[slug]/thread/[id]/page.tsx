@@ -4,6 +4,7 @@ import { eq, asc } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import ThreadView from "@/components/ThreadView";
+import SetBreadcrumb from "@/components/SetBreadcrumb";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,12 @@ export default async function ChannelThreadPage({
     .orderBy(asc(posts.createdAt));
 
   return (
-    <div>
+    <>
+      <SetBreadcrumb items={[
+        { label: `${channel.emoji} ${channel.name}`, href: `/channel/${slug}` },
+        { label: thread.title, href: null }
+      ]} />
+      <div>
       <div className="mb-6">
         <Link
           href={`/channel/${slug}`}
@@ -74,5 +80,6 @@ export default async function ChannelThreadPage({
         }))}
       />
     </div>
+  </>
   );
 }

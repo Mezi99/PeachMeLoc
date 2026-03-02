@@ -2,6 +2,7 @@ import { getDb } from "@/db";
 import { threads, channels } from "@/db/schema";
 import { desc, eq, and } from "drizzle-orm";
 import Link from "next/link";
+import SetBreadcrumb from "@/components/SetBreadcrumb";
 
 export const dynamic = "force-dynamic";
 
@@ -45,9 +46,11 @@ export default async function HomePage() {
   }
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">All Threads</h1>
+    <>
+      <SetBreadcrumb items={[]} />
+      <div>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-white">All Threads</h1>
         <p className="text-gray-400 text-sm mt-1">Recent discussions from all channels</p>
       </div>
 
@@ -103,5 +106,6 @@ export default async function HomePage() {
         </div>
       )}
     </div>
+    </>
   );
 }

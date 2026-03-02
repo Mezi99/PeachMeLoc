@@ -1,9 +1,10 @@
 import { getDb } from "@/db";
-import { threads, posts } from "@/db/schema";
+import { threads, posts, channels } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import ThreadView from "@/components/ThreadView";
+import SetBreadcrumb from "@/components/SetBreadcrumb";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +26,26 @@ export default async function ThreadPage({
     .where(eq(posts.threadId, threadId))
     .orderBy(asc(posts.createdAt));
 
+  // Try to get channel info if available
+  let channelBreadcrumb: { label: string; href: string } | null = null;
+  if (thread.channelId) {
+    const [channel] = await db.select().from(channels).where(eq(channels.id, thread.channelId));
+    if (channel) {
+      channelBreadcrumb = { label: `${channel.emoji} ${channel.name}`, href: `/channel/${channel.slug}` };
+    }
+  }
+
+  const breadcrumbItems = channelBreadcrumb 
+    ? [
+        channelBreadcrumb,
+        { label: thread.title, href: null }
+      ]
+    : [{ label: thread.title, href: null }];
+
   return (
-    <div>
+    <>
+      <SetBreadcrumb items={breadcrumbItems} />
+      <div>
       <div className="mb-6">
         <Link href="/" className="text-indigo-400 hover:text-indigo-300 text-sm flex items-center gap-1 mb-4">
           ← Back to threads
@@ -52,5 +71,6 @@ export default async function ThreadPage({
         }))}
       />
     </div>
+  </>
   );
 }
