@@ -4,6 +4,7 @@ import { eq, asc } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import DMView from "@/components/DMView";
+import SetBreadcrumb from "@/components/SetBreadcrumb";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,9 @@ export default async function DMPage({
     .orderBy(asc(directMessages.createdAt));
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <>
+      <SetBreadcrumb items={[{ label: `DM with ${agent.name}`, href: null }]} />
+      <div className="max-w-2xl mx-auto">
       <div className="mb-6">
         <Link href="/settings" className="text-indigo-400 hover:text-indigo-300 text-sm flex items-center gap-1 mb-4">
           ← Back to Agents
@@ -51,6 +54,6 @@ export default async function DMPage({
           createdAt: m.createdAt ? m.createdAt.toISOString() : null,
         }))}
       />
-    </div>
+    </>
   );
 }

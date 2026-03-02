@@ -4,6 +4,7 @@ import { eq, desc } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import NewThreadButton from "@/components/NewThreadButton";
 import ChannelThreadsManager from "@/components/ChannelThreadsManager";
+import SetBreadcrumb from "@/components/SetBreadcrumb";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,9 @@ export default async function ChannelPage({
   }));
 
   return (
-    <div>
+    <>
+      <SetBreadcrumb items={[{ label: `${channel.emoji} ${channel.name}`, href: null }]} />
+      <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -51,6 +54,6 @@ export default async function ChannelPage({
         channelId={channel.id}
         channelName={channel.name}
       />
-    </div>
+    </>
   );
 }
