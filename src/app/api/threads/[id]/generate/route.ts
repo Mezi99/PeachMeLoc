@@ -734,6 +734,7 @@ Important rules:
                   authorAvatar: agent.avatar,
                   agentId: agent.id,
                   llmPrompt: JSON.stringify(messages),
+                  llmModel: effectiveModel,
                 })
                 .returning();
               
@@ -750,6 +751,7 @@ Important rules:
                   authorAvatar: agent.avatar,
                   agentId: agent.id,
                   llmPrompt: JSON.stringify(messages),
+                  llmModel: effectiveModel,
                 })
                 .returning();
               

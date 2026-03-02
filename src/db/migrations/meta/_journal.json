@@ -64,6 +64,41 @@
       "when": 1772215000000,
       "tag": "0008_agent_context_limit",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1772216000000,
+      "tag": "0009_summarization",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1772217000000,
+      "tag": "0010_channel_inactive_flag",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1772218000000,
+      "tag": "0011_user_settings_context_limit",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1772219000000,
+      "tag": "0012_performance_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1772220000000,
+      "tag": "0013_posts_llm_model",
+      "breakpoints": true
     }
   ]
 }

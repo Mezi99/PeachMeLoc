@@ -26,7 +26,14 @@ async function runMigrations() {
     "0003_llm_prompt.sql",
     "0004_agent_name_unique.sql",
     "0005_hop_counter.sql",
-    "0010_channel_inactive_flag.sql"
+    "0006_system_prompt.sql",
+    "0007_important_rules.sql",
+    "0008_agent_context_limit.sql",
+    "0009_summarization.sql",
+    "0010_channel_inactive_flag.sql",
+    "0011_user_settings_context_limit.sql",
+    "0012_performance_indexes.sql",
+    "0013_posts_llm_model.sql"
   ];
 
   for (const file of migrationFiles) {

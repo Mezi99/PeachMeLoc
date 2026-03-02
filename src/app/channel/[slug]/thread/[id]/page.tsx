@@ -1,5 +1,5 @@
 import { getDb } from "@/db";
-import { threads, posts, channels, agents } from "@/db/schema";
+import { threads, posts, channels } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -30,21 +30,8 @@ export default async function ChannelThreadPage({
   if (thread.channelId !== channel.id) notFound();
 
   const threadPosts = await db
-    .select({
-      id: posts.id,
-      threadId: posts.threadId,
-      content: posts.content,
-      authorType: posts.authorType,
-      authorName: posts.authorName,
-      authorAvatar: posts.authorAvatar,
-      agentId: posts.agentId,
-      llmPrompt: posts.llmPrompt,
-      createdAt: posts.createdAt,
-      // Agent info
-      llmModel: agents.llmModel,
-    })
+    .select()
     .from(posts)
-    .leftJoin(agents, eq(posts.agentId, agents.id))
     .where(eq(posts.threadId, threadId))
     .orderBy(asc(posts.createdAt));
 

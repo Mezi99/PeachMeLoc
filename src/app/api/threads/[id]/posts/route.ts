@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, saveDb, syncForumFromCookie } from "@/db";
-import { posts, threads, agents, userSettings } from "@/db/schema";
+import { posts, threads, userSettings } from "@/db/schema";
 import { eq, asc, sql } from "drizzle-orm";
 
 // Extract @mentions from content and return mentioned agent names
@@ -23,35 +23,14 @@ export async function GET(
     const db = getDb();
     const { id } = await params;
     
-    // Get posts and join with agents to get LLM model for agent posts
+    // Posts now include llmModel directly when created - no JOIN needed
     const threadPosts = await db
-      .select({
-        id: posts.id,
-        threadId: posts.threadId,
-        content: posts.content,
-        authorType: posts.authorType,
-        authorName: posts.authorName,
-        authorAvatar: posts.authorAvatar,
-        agentId: posts.agentId,
-        llmPrompt: posts.llmPrompt,
-        createdAt: posts.createdAt,
-        // Agent info
-        agentName: agents.name,
-        agentAvatar: agents.avatar,
-        agentModel: agents.llmModel,
-      })
+      .select()
       .from(posts)
-      .leftJoin(agents, eq(posts.agentId, agents.id))
       .where(eq(posts.threadId, parseInt(id)))
       .orderBy(asc(posts.createdAt));
     
-    // Map to include the model as part of the post
-    const postsWithModel = threadPosts.map(post => ({
-      ...post,
-      llmModel: post.authorType === 'agent' ? post.agentModel : null,
-    }));
-    
-    return NextResponse.json(postsWithModel);
+    return NextResponse.json(threadPosts);
   } catch (error) {
     console.error("GET /api/threads/[id]/posts error:", error);
     return NextResponse.json({ error: "Failed to fetch posts" }, { status: 500 });
