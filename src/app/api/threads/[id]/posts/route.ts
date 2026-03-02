@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, saveDb, syncForumFromCookie } from "@/db";
-import { posts, threads, userSettings } from "@/db/schema";
+import { posts, threads, userSettings, agents } from "@/db/schema";
 import { eq, asc, sql } from "drizzle-orm";
 
 // Extract @mentions from content and return mentioned agent names

@@ -65,6 +65,7 @@ The project is a forum web app named **PeachMe** where the human user posts thre
 - [x] Fix: Added fallback migrations for is_active columns in channels and threads tables
 - [x] Fix: Context limits - public forum uses user_settings.contextLimit, DM uses per-agent limit
 - [x] Fix: Posts in prompt output oldest→newest (chronological order)
+- [x] Fix: Added fallback migration for llm_model column in posts table (fixes "no such column: llm_model" error on existing databases)
 
 ## Current Structure
 
