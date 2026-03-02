@@ -79,6 +79,7 @@ export default async function ChannelThreadPage({
           createdAt: p.createdAt ? p.createdAt.toISOString() : null,
         }))}
       />
-    </>
+    </div>
+  </>
   );
 }

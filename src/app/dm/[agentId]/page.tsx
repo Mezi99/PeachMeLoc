@@ -54,6 +54,7 @@ export default async function DMPage({
           createdAt: m.createdAt ? m.createdAt.toISOString() : null,
         }))}
       />
-    </>
+    </div>
+  </>
   );
 }

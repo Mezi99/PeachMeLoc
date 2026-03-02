@@ -70,6 +70,7 @@ export default async function ThreadPage({
           createdAt: p.createdAt ? p.createdAt.toISOString() : null,
         }))}
       />
-    </>
+    </div>
+  </>
   );
 }
