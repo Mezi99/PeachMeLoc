@@ -1,5 +1,5 @@
 import { getDb } from "@/db";
-import { threads, posts, channels } from "@/db/schema";
+import { threads, posts, channels, agents } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
