@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, saveDb, syncForumFromCookie } from "@/db";
 import { channels } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
+
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,14 +12,33 @@ export async function GET(req: NextRequest) {
     const db = getDb();
     const { searchParams } = new URL(req.url);
     const includeInactive = searchParams.get("includeInactive") === "true";
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(searchParams.get("limit") || String(DEFAULT_PAGE_SIZE))));
+    const offset = (page - 1) * limit;
+    
+    // Get total count for pagination
+    const countResult = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(channels);
+    const total = countResult[0]?.count || 0;
     
     let all;
+    const baseQuery = db.select().from(channels);
     if (includeInactive) {
-      all = await db.select().from(channels).orderBy(channels.createdAt);
+      all = await baseQuery.orderBy(channels.createdAt).limit(limit).offset(offset);
     } else {
-      all = await db.select().from(channels).where(eq(channels.isActive, true)).orderBy(channels.createdAt);
+      all = await baseQuery.where(eq(channels.isActive, true)).orderBy(channels.createdAt).limit(limit).offset(offset);
     }
-    return NextResponse.json(all);
+    
+    return NextResponse.json({
+      data: all,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     console.error("GET /api/channels error:", error);
     return NextResponse.json({ error: "Failed to fetch channels" }, { status: 500 });

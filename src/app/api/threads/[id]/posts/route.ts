@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, saveDb, syncForumFromCookie } from "@/db";
 import { posts, threads, agents, userSettings } from "@/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, sql } from "drizzle-orm";
 
 // Extract @mentions from content and return mentioned agent names
 function extractMentions(content: string): string[] {
@@ -67,12 +67,16 @@ export async function POST(
       })
       .returning();
 
-    // Update thread reply count and last activity
-    const postsCount = await db.select().from(posts).where(eq(posts.threadId, threadId));
+    // Update thread reply count and last activity (using SQL COUNT for efficiency)
+    const countResult = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(posts)
+      .where(eq(posts.threadId, threadId));
+    const replyCount = (countResult[0]?.count || 0) - 1;
     await db
       .update(threads)
       .set({
-        replyCount: postsCount.length - 1,
+        replyCount,
         lastActivityAt: new Date(),
       })
       .where(eq(threads.id, threadId));
@@ -161,13 +165,17 @@ export async function DELETE(
     // Delete the post
     await db.delete(posts).where(eq(posts.id, postId));
 
-    // Update thread reply count
+    // Update thread reply count (using SQL COUNT for efficiency)
     const threadId = parseInt(id);
-    const postsCount = await db.select().from(posts).where(eq(posts.threadId, threadId));
+    const countResult = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(posts)
+      .where(eq(posts.threadId, threadId));
+    const replyCount = Math.max(0, (countResult[0]?.count || 0) - 1);
     await db
       .update(threads)
       .set({
-        replyCount: Math.max(0, postsCount.length - 1),
+        replyCount,
         lastActivityAt: new Date(),
       })
       .where(eq(threads.id, threadId));
