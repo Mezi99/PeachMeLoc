@@ -54,6 +54,6 @@ export default async function ChannelPage({
         channelId={channel.id}
         channelName={channel.name}
       />
-    </>
+    </div>
   );
 }
