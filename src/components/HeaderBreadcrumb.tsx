@@ -11,9 +11,9 @@ export default function HeaderBreadcrumb({ forumName }: HeaderBreadcrumbProps) {
   const pathname = usePathname();
 
   // Build breadcrumb parts from the path
-  const parts = pathname.split("/").filter(Boolean);
+  const pathParts = pathname.split("/").filter(Boolean);
 
-  if (parts.length === 0) {
+  if (pathParts.length === 0) {
     // Home page - just show forum name
     return (
       <div className="flex items-center gap-2 text-sm">
@@ -26,20 +26,40 @@ export default function HeaderBreadcrumb({ forumName }: HeaderBreadcrumbProps) {
   const breadcrumbs: { label: string; href: string | null }[] = [];
   let currentPath = "";
 
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i];
+  for (let i = 0; i < pathParts.length; i++) {
+    const part = pathParts[i];
     currentPath += "/" + part;
 
-    // Format the label - convert slugs to readable names
     let label = part;
-    // Convert slug-case to Title Case
-    label = label
-      .replace(/-/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
+
+    // Format the label - convert slugs to readable names
+    if (part === "channel") {
+      label = "Channel";
+    } else if (part === "thread") {
+      label = "Thread";
+    } else if (part === "dm") {
+      label = "DM";
+    } else if (part === "settings") {
+      label = "Settings";
+    } else if (part === "agents") {
+      label = "Agents";
+    } else if (part === "me") {
+      label = "My Settings";
+    } else if (part === "forums") {
+      label = "Forums";
+    } else if (part === "prompt") {
+      label = "Prompt";
+    } else {
+      // This could be a slug (channel name, thread ID, etc.)
+      // Leave it as-is for now - could be enhanced to fetch actual names
+      label = part
+        .replace(/-/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+    }
 
     breadcrumbs.push({
       label,
-      href: i < parts.length - 1 ? currentPath : null, // Last part is not a link
+      href: i < pathParts.length - 1 ? currentPath : null,
     });
   }
 
@@ -57,12 +77,12 @@ export default function HeaderBreadcrumb({ forumName }: HeaderBreadcrumbProps) {
           {crumb.href ? (
             <Link
               href={crumb.href}
-              className="text-gray-300 hover:text-pink-400 transition-colors capitalize"
+              className="text-gray-300 hover:text-pink-400 transition-colors"
             >
               {crumb.label}
             </Link>
           ) : (
-            <span className="text-gray-400 capitalize">{crumb.label}</span>
+            <span className="text-gray-400">{crumb.label}</span>
           )}
         </span>
       ))}
