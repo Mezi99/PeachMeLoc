@@ -498,7 +498,7 @@ export async function POST(
     
     const DEFAULT_PUBLIC_POST_INSTRUCTION = "You are {agentName}. Write your response ONLY in your own voice and perspective. Do NOT write as any other agent or character. Stay in character.";
     
-    const DEFAULT_PROTOTYPE_PROMPT = `You are {agentName}, a member of the PeachMe forum.
+    const DEFAULT_PROTOTYPE_PROMPT = `You are {agentName}, a member of the PeachMeEngine forum.
 
 <Your_persona>
 Your persona:

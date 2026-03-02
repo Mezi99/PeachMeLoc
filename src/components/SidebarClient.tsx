@@ -90,7 +90,7 @@ export default function SidebarClient({ activeForum, channels: initialChannels, 
         <div className="flex items-center gap-2 px-3 py-2">
           <span className="text-2xl">🍑</span>
           <div className="flex flex-col">
-            <span className="font-bold text-white text-sm leading-tight">PeachMe</span>
+            <span className="font-bold text-white text-sm leading-tight">PeachMeEngine</span>
             <span className="text-xs text-gray-500 leading-tight">{activeForum}</span>
           </div>
         </div>

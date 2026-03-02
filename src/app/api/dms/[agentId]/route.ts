@@ -206,7 +206,7 @@ export async function POST(
     const DEFAULT_DM_POST_INSTRUCTION = "You are {agentName}. Write your response ONLY in your own voice and perspective. Do NOT write as the user or any other character.";
     
     // Default prototype prompt template for DMs
-    const DEFAULT_DM_PROMPT = `You are {agentName}, a member of the PeachMe forum, having a private direct message conversation with the user.
+    const DEFAULT_DM_PROMPT = `You are {agentName}, a member of the PeachMeEngine forum, having a private direct message conversation with the user.
 
 <Your_persona>
 Your persona:
