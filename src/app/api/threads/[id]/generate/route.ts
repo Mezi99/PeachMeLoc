@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, saveDb, syncForumFromCookie, withDbClient } from "@/db";
 import { posts, threads, agents, directMessages, channels, userSettings, threadSummaries } from "@/db/schema";
-import { eq, asc, desc, ne } from "drizzle-orm";
+import { eq, asc, desc, ne, sql } from "drizzle-orm";
 
 // Ensure hop_counter column exists (run migration if needed)
 async function ensureHopCounterColumn() {
@@ -498,7 +498,7 @@ export async function POST(
     
     const DEFAULT_PUBLIC_POST_INSTRUCTION = "You are {agentName}. Write your response ONLY in your own voice and perspective. Do NOT write as any other agent or character. Stay in character.";
     
-    const DEFAULT_PROTOTYPE_PROMPT = `You are {agentName}, a member of the PeachMe forum.
+    const DEFAULT_PROTOTYPE_PROMPT = `You are {agentName}, a member of the PeachMeEngine forum.
 
 <Your_persona>
 Your persona:
@@ -771,12 +771,16 @@ Important rules:
               await maybeTriggerSummarization(db, threadId, agent.id, mainApi);
             }
             
-            // Update thread reply count
-            const allPosts = await db.select().from(posts).where(eq(posts.threadId, threadId));
+            // Update thread reply count (using SQL COUNT for efficiency)
+            const countResult = await db
+              .select({ count: sql<number>`COUNT(*)` })
+              .from(posts)
+              .where(eq(posts.threadId, threadId));
+            const replyCount = (countResult[0]?.count || 0) - 1;
             await db
               .update(threads)
               .set({
-                replyCount: allPosts.length - 1,
+                replyCount,
                 lastActivityAt: new Date(),
               })
               .where(eq(threads.id, threadId));

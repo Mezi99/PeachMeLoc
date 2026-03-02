@@ -46,7 +46,9 @@ function runMigrationsOnDb(dbPath: string) {
     "0006_system_prompt.sql",
     "0007_important_rules.sql",
     "0008_agent_context_limit.sql",
-    "0010_channel_inactive_flag.sql"
+    "0010_channel_inactive_flag.sql",
+    "0011_user_settings_context_limit.sql",
+    "0012_performance_indexes.sql"
   ];
 
   for (const file of migrationFiles) {
@@ -203,6 +205,21 @@ function runFallbackMigrations(client: Database.Database) {
       console.log("Adding context_limit column to user_settings (fallback migration)...");
       client.exec("ALTER TABLE user_settings ADD COLUMN context_limit INTEGER NOT NULL DEFAULT 20;");
     }
+
+    // Add performance indexes (if they don't exist)
+    console.log("Adding performance indexes...");
+    client.exec("CREATE INDEX IF NOT EXISTS idx_posts_thread_id ON posts(thread_id)");
+    client.exec("CREATE INDEX IF NOT EXISTS idx_posts_agent_id ON posts(agent_id)");
+    client.exec("CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at)");
+    client.exec("CREATE INDEX IF NOT EXISTS idx_posts_thread_created ON posts(thread_id, created_at)");
+    client.exec("CREATE INDEX IF NOT EXISTS idx_dm_agent_id ON direct_messages(agent_id)");
+    client.exec("CREATE INDEX IF NOT EXISTS idx_dm_created_at ON direct_messages(created_at)");
+    client.exec("CREATE INDEX IF NOT EXISTS idx_threads_channel_id ON threads(channel_id)");
+    client.exec("CREATE INDEX IF NOT EXISTS idx_threads_last_activity ON threads(last_activity_at DESC)");
+    client.exec("CREATE INDEX IF NOT EXISTS idx_threads_is_active ON threads(is_active)");
+    client.exec("CREATE INDEX IF NOT EXISTS idx_channels_is_active ON channels(is_active)");
+    client.exec("CREATE INDEX IF NOT EXISTS idx_agents_is_active ON agents(is_active)");
+    client.exec("CREATE INDEX IF NOT EXISTS idx_thread_summaries_thread_agent ON thread_summaries(thread_id, agent_id)");
   } catch (e) {
     console.error("Fallback migration error:", e);
   }

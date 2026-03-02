@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, saveDb, syncForumFromCookie } from "@/db";
 import { threads, posts, userSettings } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
+
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,18 +12,53 @@ export async function GET(req: NextRequest) {
     const db = getDb();
     const { searchParams } = new URL(req.url);
     const channelId = searchParams.get("channelId");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(searchParams.get("limit") || String(DEFAULT_PAGE_SIZE))));
+    const offset = (page - 1) * limit;
+
+    // Get total count for pagination
+    const countResult = channelId
+      ? await db
+          .select({ count: sql<number>`COUNT(*)` })
+          .from(threads)
+          .where(eq(threads.channelId, parseInt(channelId)))
+      : await db.select({ count: sql<number>`COUNT(*)` }).from(threads);
+    const total = countResult[0]?.count || 0;
 
     if (channelId) {
       const allThreads = await db
         .select()
         .from(threads)
         .where(eq(threads.channelId, parseInt(channelId)))
-        .orderBy(desc(threads.lastActivityAt));
-      return NextResponse.json(allThreads);
+        .orderBy(desc(threads.lastActivityAt))
+        .limit(limit)
+        .offset(offset);
+      return NextResponse.json({
+        data: allThreads,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        }
+      });
     }
 
-    const allThreads = await db.select().from(threads).orderBy(desc(threads.lastActivityAt));
-    return NextResponse.json(allThreads);
+    const allThreads = await db
+      .select()
+      .from(threads)
+      .orderBy(desc(threads.lastActivityAt))
+      .limit(limit)
+      .offset(offset);
+    return NextResponse.json({
+      data: allThreads,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     console.error("GET /api/threads error:", error);
     return NextResponse.json({ error: "Failed to fetch threads" }, { status: 500 });

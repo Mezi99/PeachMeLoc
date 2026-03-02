@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 
 interface Channel {
   id: number;
@@ -26,6 +26,50 @@ interface SidebarClientProps {
   agents: AgentSummary[];
 }
 
+// Memoized channel item component
+const ChannelItem = memo(function ChannelItem({ channel, isActive }: { channel: Channel; isActive: boolean }) {
+  return (
+    <Link
+      href={`/channel/${channel.slug}`}
+      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+        isActive
+          ? "bg-gray-800 text-white"
+          : "text-gray-400 hover:text-white hover:bg-gray-800"
+      }`}
+    >
+      <span className="text-base">{channel.emoji}</span>
+      <span className="truncate">{channel.name}</span>
+    </Link>
+  );
+});
+
+ChannelItem.displayName = 'ChannelItem';
+
+// Memoized agent item component
+const AgentItem = memo(function AgentItem({ agent, isActive }: { agent: AgentSummary; isActive: boolean }) {
+  return (
+    <Link
+      href={`/dm/${agent.id}`}
+      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+        isActive
+          ? "bg-gray-800 text-white"
+          : "text-gray-400 hover:text-white hover:bg-gray-800"
+      }`}
+    >
+      <span className="text-base">{agent.avatar}</span>
+      <span className="truncate flex-1">{agent.name}</span>
+      {!agent.isActive && (
+        <span className="w-2 h-2 rounded-full bg-gray-700 shrink-0" title="Inactive" />
+      )}
+      {agent.isActive && (
+        <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" title="Active" />
+      )}
+    </Link>
+  );
+});
+
+AgentItem.displayName = 'AgentItem';
+
 export default function SidebarClient({ activeForum, channels: initialChannels, agents }: SidebarClientProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -46,7 +90,7 @@ export default function SidebarClient({ activeForum, channels: initialChannels, 
         <div className="flex items-center gap-2 px-3 py-2">
           <span className="text-2xl">🍑</span>
           <div className="flex flex-col">
-            <span className="font-bold text-white text-sm leading-tight">PeachMe</span>
+            <span className="font-bold text-white text-sm leading-tight">PeachMeEngine</span>
             <span className="text-xs text-gray-500 leading-tight">{activeForum}</span>
           </div>
         </div>
@@ -82,18 +126,11 @@ export default function SidebarClient({ activeForum, channels: initialChannels, 
             {/* Channel list */}
             <div className="space-y-0.5">
               {channels.map((channel) => (
-                <Link
-                  key={channel.id}
-                  href={`/channel/${channel.slug}`}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                    pathname === `/channel/${channel.slug}`
-                      ? "bg-gray-800 text-white"
-                      : "text-gray-400 hover:text-white hover:bg-gray-800"
-                  }`}
-                >
-                  <span className="text-base">{channel.emoji}</span>
-                  <span className="truncate">{channel.name}</span>
-                </Link>
+                <ChannelItem 
+                  key={channel.id} 
+                  channel={channel} 
+                  isActive={pathname === `/channel/${channel.slug}`}
+                />
               ))}
               {channels.length === 0 && (
                 <p className="text-xs text-gray-600 px-3 py-2">No channels yet</p>
@@ -116,24 +153,11 @@ export default function SidebarClient({ activeForum, channels: initialChannels, 
         {showDMs && (
           <div className="space-y-0.5">
             {agents.map((agent) => (
-              <Link
+              <AgentItem
                 key={agent.id}
-                href={`/dm/${agent.id}`}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                  pathname === `/dm/${agent.id}`
-                    ? "bg-gray-800 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-gray-800"
-                }`}
-              >
-                <span className="text-base">{agent.avatar}</span>
-                <span className="truncate flex-1">{agent.name}</span>
-                {!agent.isActive && (
-                  <span className="w-2 h-2 rounded-full bg-gray-700 shrink-0" title="Inactive" />
-                )}
-                {agent.isActive && (
-                  <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" title="Active" />
-                )}
-              </Link>
+                agent={agent}
+                isActive={pathname === `/dm/${agent.id}`}
+              />
             ))}
             {agents.length === 0 && (
               <p className="text-xs text-gray-600 px-3 py-2">

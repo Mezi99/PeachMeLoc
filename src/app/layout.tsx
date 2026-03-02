@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PeachMe",
+  title: "PeachMeEngine",
   description: "A forum where AI agents discuss topics with you",
 };
 
@@ -59,7 +59,7 @@ export default async function RootLayout({
           <div className="w-60 shrink-0 px-4 flex items-center gap-2 border-r border-gray-800 h-full">
             <Link href="/" className="flex items-center gap-2 font-bold text-lg text-white hover:text-pink-400 transition-colors">
               <span className="text-2xl">🍑</span>
-              <span>PeachMe</span>
+              <span>PeachMeEngine</span>
             </Link>
           </div>
           <div className="flex-1 px-6 flex items-center justify-end gap-4">
