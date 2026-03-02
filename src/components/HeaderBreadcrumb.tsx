@@ -10,6 +10,18 @@ interface AgentInfo {
   avatar: string;
 }
 
+interface ChannelInfo {
+  id: number;
+  name: string;
+  slug: string;
+  emoji: string;
+}
+
+interface ThreadInfo {
+  id: number;
+  title: string;
+}
+
 interface HeaderBreadcrumbProps {
   forumName: string;
 }
@@ -17,13 +29,15 @@ interface HeaderBreadcrumbProps {
 export default function HeaderBreadcrumb({ forumName }: HeaderBreadcrumbProps) {
   const pathname = usePathname();
   const [agentNames, setAgentNames] = useState<Record<number, string>>({});
+  const [channels, setChannels] = useState<ChannelInfo[]>([]);
   const [threadTitles, setThreadTitles] = useState<Record<number, string>>({});
+  const [loading, setLoading] = useState(true);
 
-  // Fetch agent names and thread titles for dynamic display
+  // Fetch agents and channels on mount
   useEffect(() => {
-    async function fetchDynamicData() {
+    async function fetchData() {
       try {
-        // Fetch all agents
+        // Fetch agents
         const agentsRes = await fetch("/api/agents");
         if (agentsRes.ok) {
           const agents: AgentInfo[] = await agentsRes.json();
@@ -33,50 +47,58 @@ export default function HeaderBreadcrumb({ forumName }: HeaderBreadcrumbProps) {
           });
           setAgentNames(agentMap);
         }
+
+        // Fetch channels
+        const channelsRes = await fetch("/api/channels");
+        if (channelsRes.ok) {
+          const result = await channelsRes.json();
+          const channelsData = result.data || result;
+          setChannels(channelsData);
+        }
       } catch (e) {
-        console.error("Failed to fetch agents for breadcrumb:", e);
+        console.error("Failed to fetch breadcrumb data:", e);
+      } finally {
+        setLoading(false);
       }
     }
-    fetchDynamicData();
+    fetchData();
   }, []);
 
-  // Extract thread IDs and agent IDs from pathname to fetch titles
+  // Fetch thread title when pathname contains thread ID
   useEffect(() => {
     const pathParts = pathname.split("/").filter(Boolean);
     
-    const threadIdsToFetch: number[] = [];
-    const agentIdsToFetch: number[] = [];
-
     for (let i = 0; i < pathParts.length; i++) {
-      const part = pathParts[i];
-      
-      // Check for thread ID
-      if (part === "thread" && pathParts[i + 1]) {
-        const id = parseInt(pathParts[i + 1]);
-        if (!isNaN(id)) {
-          threadIdsToFetch.push(id);
-          i++;
-        }
-      }
-      // Check for DM with agent ID
-      else if (part === "dm" && pathParts[i + 1]) {
-        const id = parseInt(pathParts[i + 1]);
-        if (!isNaN(id)) {
-          agentIdsToFetch.push(id);
-          i++;
+      if (pathParts[i] === "thread" && pathParts[i + 1]) {
+        const threadId = parseInt(pathParts[i + 1]);
+        if (!isNaN(threadId) && !threadTitles[threadId]) {
+          // Fetch thread info
+          fetch(`/api/threads/${threadId}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data.title) {
+                setThreadTitles(prev => ({ ...prev, [threadId]: data.title }));
+              }
+            })
+            .catch(console.error);
         }
       }
     }
-
-    // We already have agent names from the first useEffect, just need thread titles
-    // For now, we'll show IDs in the UI and can improve later
-  }, [pathname]);
+  }, [pathname, threadTitles]);
 
   // Build breadcrumb parts from the path
   const pathParts = pathname.split("/").filter(Boolean);
 
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-gray-400">
+        <span>{forumName}</span>
+      </div>
+    );
+  }
+
   if (pathParts.length === 0) {
-    // Home page - just show forum name
+    // Home page - just show forum name (not a link)
     return (
       <div className="flex items-center gap-2 text-sm">
         <span className="font-semibold text-white">{forumName}</span>
@@ -85,7 +107,7 @@ export default function HeaderBreadcrumb({ forumName }: HeaderBreadcrumbProps) {
   }
 
   // Build breadcrumb segments
-  const breadcrumbs: { label: string; href: string | null }[] = [];
+  const breadcrumbs: { label: string; href: string | null; isClickable: boolean }[] = [];
   let currentPath = "";
 
   for (let i = 0; i < pathParts.length; i++) {
@@ -93,65 +115,87 @@ export default function HeaderBreadcrumb({ forumName }: HeaderBreadcrumbProps) {
     currentPath += "/" + part;
 
     let label = part;
+    let href: string | null = null;
+    let isClickable = false;
 
-    // Format the label based on path segment
-    if (part === "channel") {
-      label = "Channel";
-    } else if (part === "thread") {
-      label = "Thread";
-    } else if (part === "dm") {
-      label = "DM";
-    } else if (part === "settings") {
-      label = "Settings";
-    } else if (part === "agents") {
-      label = "Agents";
-    } else if (part === "me") {
-      label = "My Settings";
-    } else if (part === "forums") {
-      label = "Forums";
-    } else if (part === "prompt") {
-      label = "Prompt";
-    } else if (part === "channel") {
-      label = "Channel";
-    } else {
-      // This is a slug or ID - format it
-      // Check if it's a number (ID) or a slug
-      const id = parseInt(part);
-      if (!isNaN(id)) {
-        // It's an ID - check if we have the name
-        if (pathParts[i - 1] === "dm" && agentNames[id]) {
-          label = agentNames[id];
-        } else if (pathParts[i - 1] === "thread") {
-          label = `Thread #${id}`;
-        } else {
-          label = `#${id}`;
-        }
-      } else {
-        // It's a slug - convert to readable format
-        label = part
-          .replace(/-/g, " ")
-          .replace(/\b\w/g, (c) => c.toUpperCase());
+    // Determine what this segment represents
+    if (part === "channel" && pathParts[i + 1]) {
+      // Next part is channel slug
+      const slug = pathParts[i + 1];
+      const channel = channels.find(c => c.slug === slug);
+      label = channel ? `${channel.emoji} ${channel.name}` : slug;
+      href = currentPath;
+      isClickable = i < pathParts.length - 1; // Clickable if not current page
+      i++;
+    } 
+    else if (part === "thread" && pathParts[i + 1]) {
+      // Next part is thread ID
+      const threadId = parseInt(pathParts[i + 1]);
+      if (!isNaN(threadId)) {
+        label = threadTitles[threadId] || `Thread #${threadId}`;
       }
+      // This is the current page - not clickable
+      href = null;
+      isClickable = false;
+      i++;
+    }
+    else if (part === "dm" && pathParts[i + 1]) {
+      // Next part is agent ID
+      const agentId = parseInt(pathParts[i + 1]);
+      if (!isNaN(agentId)) {
+        label = agentNames[agentId] ? `DM with ${agentNames[agentId]}` : `DM #${agentId}`;
+      }
+      href = currentPath;
+      isClickable = i < pathParts.length - 1;
+      i++;
+    }
+    else if (part === "settings") {
+      label = "Settings";
+      href = "/settings";
+      isClickable = i < pathParts.length - 1;
+    }
+    else if (part === "agents") {
+      label = "Manage Agents";
+      href = "/settings/agents";
+      isClickable = i < pathParts.length - 1;
+    }
+    else if (part === "me") {
+      label = "My Settings";
+      href = "/settings/me";
+      isClickable = i < pathParts.length - 1;
+    }
+    else if (part === "forums") {
+      label = "Saved Forums";
+      href = "/settings/forums";
+      isClickable = i < pathParts.length - 1;
+    }
+    else if (part === "prompt") {
+      label = "System Prompt";
+      href = "/settings/prompt";
+      isClickable = i < pathParts.length - 1;
+    }
+    else if (part === "channels") {
+      label = "Manage Channels";
+      href = "/settings/channels";
+      isClickable = i < pathParts.length - 1;
+    }
+    else {
+      // Unknown segment - format it
+      label = part.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
     }
 
-    breadcrumbs.push({
-      label,
-      href: i < pathParts.length - 1 ? currentPath : null,
-    });
+    breadcrumbs.push({ label, href, isClickable });
   }
 
   return (
     <div className="flex items-center gap-2 text-sm">
-      <Link
-        href="/"
-        className="font-semibold text-white hover:text-pink-400 transition-colors"
-      >
-        {forumName}
-      </Link>
+      {/* Forum name - not a link */}
+      <span className="font-semibold text-white">{forumName}</span>
+      
       {breadcrumbs.map((crumb, idx) => (
         <span key={idx} className="flex items-center gap-2">
           <span className="text-gray-500">/</span>
-          {crumb.href ? (
+          {crumb.isClickable && crumb.href ? (
             <Link
               href={crumb.href}
               className="text-gray-300 hover:text-pink-400 transition-colors"
