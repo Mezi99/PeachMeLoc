@@ -49,6 +49,7 @@ export default async function DMPage({
         agentId={agentIdNum}
         agentName={agent.name}
         agentAvatar={agent.avatar}
+        agentModel={agent.llmModel}
         initialMessages={messages.map((m) => ({
           ...m,
           createdAt: m.createdAt ? m.createdAt.toISOString() : null,

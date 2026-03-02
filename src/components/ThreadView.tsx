@@ -13,6 +13,7 @@ interface Post {
   authorAvatar: string;
   agentId: number | null;
   llmPrompt?: string | null;
+  llmModel?: string | null;
   createdAt: string | null;
 }
 
@@ -338,8 +339,16 @@ export default function ThreadView({ threadId, initialPosts, activeAgents = [] }
                     </span>
                   )}
                   {!isHuman && (
-                    <span className="text-xs bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded">
+                    <span 
+                      className="text-xs bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded cursor-help group relative"
+                      title={post.llmModel || "AI"}
+                    >
                       AI
+                      {post.llmModel && (
+                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-700 text-xs text-gray-300 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                          {post.llmModel}
+                        </span>
+                      )}
                     </span>
                   )}
                   <span className="text-xs text-gray-600">{formatTime(post.createdAt)}</span>

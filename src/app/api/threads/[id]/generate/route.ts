@@ -763,7 +763,7 @@ Important rules:
                 type: 'agent_response', 
                 agentName: agentPost.authorName,
                 agentAvatar: agentPost.authorAvatar,
-                post: agentPost 
+                post: { ...agentPost, llmModel: agent.llmModel }
               });
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
               

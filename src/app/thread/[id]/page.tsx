@@ -21,8 +21,21 @@ export default async function ThreadPage({
   if (!thread) notFound();
 
   const threadPosts = await db
-    .select()
+    .select({
+      id: posts.id,
+      threadId: posts.threadId,
+      content: posts.content,
+      authorType: posts.authorType,
+      authorName: posts.authorName,
+      authorAvatar: posts.authorAvatar,
+      agentId: posts.agentId,
+      llmPrompt: posts.llmPrompt,
+      createdAt: posts.createdAt,
+      // Agent info
+      llmModel: agents.llmModel,
+    })
     .from(posts)
+    .leftJoin(agents, eq(posts.agentId, agents.id))
     .where(eq(posts.threadId, threadId))
     .orderBy(asc(posts.createdAt));
 

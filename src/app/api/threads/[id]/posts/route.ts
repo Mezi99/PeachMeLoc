@@ -22,12 +22,36 @@ export async function GET(
     await syncForumFromCookie(); // Sync forum based on cookie
     const db = getDb();
     const { id } = await params;
+    
+    // Get posts and join with agents to get LLM model for agent posts
     const threadPosts = await db
-      .select()
+      .select({
+        id: posts.id,
+        threadId: posts.threadId,
+        content: posts.content,
+        authorType: posts.authorType,
+        authorName: posts.authorName,
+        authorAvatar: posts.authorAvatar,
+        agentId: posts.agentId,
+        llmPrompt: posts.llmPrompt,
+        createdAt: posts.createdAt,
+        // Agent info
+        agentName: agents.name,
+        agentAvatar: agents.avatar,
+        agentModel: agents.llmModel,
+      })
       .from(posts)
+      .leftJoin(agents, eq(posts.agentId, agents.id))
       .where(eq(posts.threadId, parseInt(id)))
       .orderBy(asc(posts.createdAt));
-    return NextResponse.json(threadPosts);
+    
+    // Map to include the model as part of the post
+    const postsWithModel = threadPosts.map(post => ({
+      ...post,
+      llmModel: post.authorType === 'agent' ? post.agentModel : null,
+    }));
+    
+    return NextResponse.json(postsWithModel);
   } catch (error) {
     console.error("GET /api/threads/[id]/posts error:", error);
     return NextResponse.json({ error: "Failed to fetch posts" }, { status: 500 });
